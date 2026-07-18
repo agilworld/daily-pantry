@@ -6,6 +6,7 @@ import type { DbClient } from "./middleware/db.middleware";
 import authController from "./auth/auth.controller";
 import userController from "./user/user.controller";
 import sellerController from "./seller/seller.controller";
+import mealController from "./meal/meal.controller";
 
 type Variables = {
   db: DbClient;
@@ -42,5 +43,6 @@ app.get("/", (c) => c.json({ message: "Daily Pantry API", status: "running" }));
 app.route("/api/auth", authController);
 app.route("/api/users", userController);
 app.route("/api/sellers", sellerController);
+app.route("/api/meals", mealController);
 
 export default app;
