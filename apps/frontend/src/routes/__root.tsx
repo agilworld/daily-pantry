@@ -49,13 +49,33 @@ function AppShell() {
               <span className="text-xl">🏠</span>
               <span>Home</span>
             </Link>
-            <Link
-              to="/users"
-              className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
-            >
-              <span className="text-xl">👥</span>
-              <span>Users</span>
-            </Link>
+            {(user.role_name === "office_boy" || user.role_name === "manager") && (
+              <Link
+                to="/users"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">👥</span>
+                <span>Users</span>
+              </Link>
+            )}
+            {user.role_name === "employee" && (
+              <Link
+                to="/order"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">🍽️</span>
+                <span>Order</span>
+              </Link>
+            )}
+            {user.role_name === "seller" && (
+              <Link
+                to="/menu"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">📋</span>
+                <span>Menu</span>
+              </Link>
+            )}
             {user.role_name === "seller" && (
               <Link
                 to="/profile"
@@ -65,7 +85,15 @@ function AppShell() {
                 <span>Store</span>
               </Link>
             )}
-            {/* Task 14+ will add role-based nav links */}
+            {user.role_name === "office_boy" && (
+              <Link
+                to="/fulfillment"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">📦</span>
+                <span>Fulfill</span>
+              </Link>
+            )}
           </div>
         </nav>
       )}

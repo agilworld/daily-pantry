@@ -10,6 +10,9 @@ import { RegisterPage } from "./routes/register";
 import { UsersPage } from "./routes/users";
 import { DashboardPage } from "./routes/dashboard";
 import { ProfilePage } from "./routes/profile";
+import { OrderPage } from "./routes/order";
+import { MenuPage } from "./routes/menu";
+import { FulfillmentPage } from "./routes/fulfillment";
 
 const rootRoute = createRootRoute({
   component: RootComponent,
@@ -53,6 +56,24 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
+const orderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/order",
+  component: OrderPage,
+});
+
+const menuRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/menu",
+  component: MenuPage,
+});
+
+const fulfillmentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/fulfillment",
+  component: FulfillmentPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -60,6 +81,9 @@ const routeTree = rootRoute.addChildren([
   dashboardRoute,
   usersRoute,
   profileRoute,
+  orderRoute,
+  menuRoute,
+  fulfillmentRoute,
 ]);
 
 export const router = createRouter({ routeTree });

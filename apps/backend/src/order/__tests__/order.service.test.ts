@@ -1,0 +1,131 @@
+import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { OrderService } from "../order.service";
+import { OrderRepository } from "../order.repository";
+import type { Order } from "../order.model";
+
+const samplePlacedOrder: Order = {
+  id: "order-1",
+  order_no: "ORD-TEST-001",
+  employee_id: "emp-1",
+  meal_id: "meal-1",
+  seller_id: "seller-1",
+  meal_name: "Nasi Goreng",
+  meal_price_cents: 25000,
+  quantity: 2,
+  total_cents: 50000,
+  status: "placed",
+  notes: null,
+  fulfillment_notes: null,
+  order_date: "2026-07-18T12:00:00.000Z",
+  placed_at: "2026-07-18T12:00:00.000Z",
+  confirmed_at: null,
+  ready_at: null,
+  delivered_at: null,
+  cancelled_at: null,
+  created_at: "2026-07-18T12:00:00.000Z",
+  updated_at: null,
+};
+
+function makeOrder(overrides: Partial<Order> = {}): Order {
+  return { ...samplePlacedOrder, ...overrides };
+}
+
+function createMockRepo(overrides: Partial<OrderRepository> = {}): OrderRepository {
+  return {
+    createOrder: mock(() => Promise.resolve(makeOrder())),
+    findById: mock(() => Promise.resolve(makeOrder())),
+    findByEmployee: mock(() => Promise.resolve([makeOrder()])),
+    findBySeller: mock(() => Promise.resolve([makeOrder()])),
+    findReadyForDelivery: mock(() => Promise.resolve([makeOrder()])),
+    updateStatus: mock(() => Promise.resolve()),
+    ...overrides,
+  } as unknown as OrderRepository;
+}
+
+describe("OrderService", () => {
+  let repo: OrderRepository;
+  let service: OrderService;
+
+  beforeEach(() => {
+    repo = createMockRepo();
+    service = new OrderService(repo);
+  });
+
+  describe("placeOrder", () => {
+    it("creates an order with correct totals", async () => {
+      const order = await service.placeOrder("emp-1", {
+        meal_id: "meal-1",
+        seller_id: "seller-1",
+        meal_name: "Nasi Goreng",
+        meal_price_cents: 25000,
+        quantity: 2,
+        notes: null,
+      });
+
+      expect(order.total_cents).toBe(50000);
+      expect(order.meal_name).toBe("Nasi Goreng");
+      expect(repo.createOrder).toHaveBeenCalled();
+    });
+  });
+
+  describe("state transitions", () => {
+    it("confirms a placed order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
+      const order = await service.confirmOrder("order-1", "seller-1");
+      expect(order.status).toBe("placed"); // stub returns placed unchanged, but updateStatus was called
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "confirmed", "confirmed_at");
+    });
+
+    it("rejects confirming an order not owned by the seller", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed", seller_id: "seller-2" }));
+      await expect(service.confirmOrder("order-1", "seller-1")).rejects.toThrow("Not your order");
+    });
+
+    it("rejects invalid transition (delivered -> confirmed)", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "delivered" }));
+      await expect(service.confirmOrder("order-1", "seller-1")).rejects.toThrow("Cannot transition from delivered to confirmed");
+    });
+
+    it("marks order ready from confirmed", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "confirmed" }));
+      await service.readyOrder("order-1", "seller-1", "Almost done");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "ready", "ready_at", "Almost done");
+    });
+
+    it("delivers a ready order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "ready" }));
+      await service.deliverOrder("order-1", "ob-1");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "delivered", "delivered_at", undefined);
+    });
+
+    it("rejects delivering from placed (skips state)", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
+      await expect(service.deliverOrder("order-1", "ob-1")).rejects.toThrow("Cannot transition from placed to delivered");
+    });
+  });
+
+  describe("cancelOrder authorization", () => {
+    it("lets employee cancel their own order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed", employee_id: "emp-1" }));
+      await service.cancelOrder("order-1", "emp-1", "employee");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "cancelled", "cancelled_at", undefined);
+    });
+
+    it("rejects employee canceling another's order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed", employee_id: "emp-2" }));
+      await expect(service.cancelOrder("order-1", "emp-1", "employee")).rejects.toThrow("Not your order");
+    });
+
+    it("lets seller cancel their own order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed", seller_id: "seller-1" }));
+      await service.cancelOrder("order-1", "seller-1", "seller");
+      expect(repo.updateStatus).toHaveBeenCalled();
+    });
+
+    it("lets office_boy cancel any order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
+      await service.cancelOrder("order-1", "ob-1", "office_boy");
+      expect(repo.updateStatus).toHaveBeenCalled();
+    });
+  });
+});

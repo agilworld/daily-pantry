@@ -1,4 +1,4 @@
-import { createDb, roles } from "@dailypantry/shared";
+import { createDb, roles, MEAL_CATEGORIES } from "@dailypantry/shared";
 
 // Deterministic UUIDs so re-running doesn't create new roles
 const ROLE_IDS = {
@@ -17,6 +17,8 @@ export async function seed() {
     { id: ROLE_IDS.office_boy, name: "office_boy", is_active: true },
     { id: ROLE_IDS.manager, name: "manager", is_active: true },
   ];
+
+  console.log(`  Meal categories: ${MEAL_CATEGORIES.join(", ")}`);
 
   for (const role of roleData) {
     await db

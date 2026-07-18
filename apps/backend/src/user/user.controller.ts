@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../middleware/auth.middleware";
+import { roleGuard } from "../middleware/role.middleware";
 import { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
 import { createUserBodySchema, updateUserBodySchema } from "./user.schema";
@@ -10,9 +10,6 @@ type Variables = {
   db: DbClient;
   user: {
     id: string;
-    name: string;
-    email: string;
-    role_id: string;
     role_name: string;
   };
 };
@@ -20,12 +17,7 @@ type Variables = {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // All routes require auth + office_boy role
-app.use("*", authMiddleware);
-app.use("*", async (c, next) => {
-  const user = c.get("user");
-  if (user.role_name !== "office_boy") return c.json({ error: "Forbidden" }, 403);
-  await next();
-});
+app.use("*", roleGuard("office_boy"));
 
 app.get("/", async (c) => {
   const db = c.get("db");
