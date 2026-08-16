@@ -11,3 +11,9 @@ export const registerBodySchema = z.object({
   password: z.string().min(6),
   role_id: z.string().min(1),
 });
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(6),
+  new_password: z.string().min(6),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -22,3 +22,8 @@ export type ConfirmOrderInput = z.infer<typeof confirmOrderSchema>;
 export type ReadyOrderInput = z.infer<typeof readyOrderSchema>;
 export type DeliverOrderInput = z.infer<typeof deliverOrderSchema>;
 export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;
+
+export const listOrdersQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;

@@ -32,12 +32,16 @@ export class OrderService {
     });
   }
 
-  async getEmployeeOrders(employeeId: string): Promise<Order[]> {
-    return this.repo.findByEmployee(employeeId);
+  async getEmployeeOrders(employeeId: string, date?: string): Promise<Order[]> {
+    return this.repo.findByEmployee(employeeId, date);
   }
 
-  async getSellerOrders(sellerId: string, status?: OrderStatus): Promise<Order[]> {
-    return this.repo.findBySeller(sellerId, status);
+  async getSellerOrders(sellerId: string, status?: OrderStatus, date?: string): Promise<Order[]> {
+    return this.repo.findBySeller(sellerId, status, date);
+  }
+
+  async getAllOrders(date?: string): Promise<Order[]> {
+    return this.repo.findAll(date);
   }
 
   async getReadyOrders(): Promise<Order[]> {
@@ -48,10 +52,9 @@ export class OrderService {
     return ORDER_TRANSITIONS[currentStatus]?.includes(newStatus) ?? false;
   }
 
-  async confirmOrder(id: string, sellerId: string): Promise<Order> {
+  async confirmOrder(id: string, officeBoyId: string): Promise<Order> {
     const order = await this.repo.findById(id);
     if (!order) throw new Error("Order not found");
-    if (order.seller_id !== sellerId) throw new Error("Not your order");
     if (!this.validateTransition(order.status, "confirmed")) {
       throw new Error(`Cannot transition from ${order.status} to confirmed`);
     }
@@ -59,10 +62,9 @@ export class OrderService {
     return (await this.repo.findById(id)) as Order;
   }
 
-  async readyOrder(id: string, sellerId: string, fulfillmentNotes?: string): Promise<Order> {
+  async readyOrder(id: string, officeBoyId: string, fulfillmentNotes?: string): Promise<Order> {
     const order = await this.repo.findById(id);
     if (!order) throw new Error("Order not found");
-    if (order.seller_id !== sellerId) throw new Error("Not your order");
     if (!this.validateTransition(order.status, "ready")) {
       throw new Error(`Cannot transition from ${order.status} to ready`);
     }

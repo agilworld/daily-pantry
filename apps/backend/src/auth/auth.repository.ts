@@ -73,4 +73,11 @@ export class AuthRepository {
   async deleteSession(token: string): Promise<void> {
     await this.db.delete(sessions).where(eq(sessions.token, token));
   }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ password: hashedPassword, updated_at: new Date().toISOString() })
+      .where(eq(users.id, userId));
+  }
 }

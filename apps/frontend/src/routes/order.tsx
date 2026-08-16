@@ -3,16 +3,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { RoleGuard } from "../components/RoleGuard";
 import { Layout } from "../components/Layout";
 import { useActiveMeals } from "../hooks/useMeals";
-import { usePlaceOrder, useMyOrders } from "../hooks/useOrders";
+import { usePlaceOrder } from "../hooks/useOrders";
 import { MEAL_CATEGORIES } from "@dailypantry/shared";
-
-const STATUS_STYLES: Record<string, string> = {
-  placed: "bg-yellow-100 text-yellow-800",
-  confirmed: "bg-blue-100 text-blue-800",
-  ready: "bg-green-100 text-green-800",
-  delivered: "bg-gray-100 text-gray-800",
-  cancelled: "bg-red-100 text-red-800",
-};
 
 function formatIDR(cents: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -29,7 +21,6 @@ function capitalize(s: string) {
 export function OrderPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>(MEAL_CATEGORIES[0]);
   const { data: meals, isLoading: mealsLoading } = useActiveMeals(selectedCategory);
-  const { data: orders } = useMyOrders();
 
   const [modalMeal, setModalMeal] = useState<{
     id: string;
@@ -133,52 +124,6 @@ export function OrderPage() {
                 </p>
               </div>
             )}
-
-            {/* My Orders */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">My Orders</h3>
-              {orders && orders.length > 0 ? (
-                <div className="space-y-2">
-                  {orders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="bg-white rounded-xl p-4 shadow-sm border"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">
-                            {order.meal_name}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            #{order.order_no} &middot; {order.quantity}x &middot;{" "}
-                            {formatIDR(order.total_cents)}
-                          </p>
-                          {order.notes && (
-                            <p className="text-xs text-gray-400 mt-1 italic truncate">
-                              &ldquo;{order.notes}&rdquo;
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full capitalize ${
-                            STATUS_STYLES[order.status] || "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl p-8 shadow-sm border text-center">
-                  <p className="text-gray-500 text-sm">No orders yet.</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Select a meal above to place your first order.
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Order Modal */}

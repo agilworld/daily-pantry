@@ -7,7 +7,9 @@ import authController from "./auth/auth.controller";
 import userController from "./user/user.controller";
 import sellerController from "./seller/seller.controller";
 import mealController from "./meal/meal.controller";
+import categoryController from "./category/category.controller";
 import orderController from "./order/order.controller";
+import notesController from "./notes/notes.controller";
 
 type Variables = {
   db: DbClient;
@@ -45,6 +47,8 @@ app.route("/api/auth", authController);
 app.route("/api/users", userController);
 app.route("/api/sellers", sellerController);
 app.route("/api/meals", mealController);
+app.route("/api/categories", categoryController);
 app.route("/api/orders", orderController);
+app.route("/api/notes", notesController);
 
 export default app;

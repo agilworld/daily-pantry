@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { roleGuard } from "../middleware/role.middleware";
+import { authMiddleware } from "../middleware/auth.middleware";
 import { UserRepository } from "./user.repository";
 import { UserService } from "./user.service";
-import { createUserBodySchema, updateUserBodySchema } from "./user.schema";
+import { createUserBodySchema, updateUserBodySchema, updateProfileSchema } from "./user.schema";
 import type { Env } from "../types/env";
 import type { DbClient } from "../middleware/db.middleware";
 
@@ -16,10 +17,32 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// All routes require auth + office_boy role
-app.use("*", roleGuard("office_boy"));
+// GET /api/users/me - any authenticated role (MUST be before /:id routes)
+app.get("/me", authMiddleware, async (c) => {
+  const db = c.get("db");
+  const user = c.get("user");
+  const repo = new UserRepository(db);
+  const profile = await repo.findById(user.id);
+  if (!profile) return c.json({ error: "User not found" }, 404);
+  return c.json({ user: profile }, 200);
+});
 
-app.get("/", async (c) => {
+// PUT /api/users/me - any authenticated role (MUST be before /:id routes)
+app.put("/me", authMiddleware, async (c) => {
+  const db = c.get("db");
+  const user = c.get("user");
+  const repo = new UserRepository(db);
+  const body = await c.req.json();
+  const parsed = updateProfileSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
+  await repo.updateUser(user.id, parsed.data);
+  const updated = await repo.findById(user.id);
+  return c.json({ user: updated }, 200);
+});
+
+// Management routes below require office_boy role
+
+app.get("/", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new UserRepository(db);
   const service = new UserService(repo);
@@ -35,7 +58,7 @@ app.get("/", async (c) => {
   return c.json({ users }, 200);
 });
 
-app.post("/", async (c) => {
+app.post("/", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new UserRepository(db);
   const service = new UserService(repo);
@@ -56,7 +79,7 @@ app.post("/", async (c) => {
   }
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new UserRepository(db);
   const service = new UserService(repo);
@@ -82,7 +105,7 @@ app.patch("/:id", async (c) => {
   return c.json({ message: "User updated" }, 200);
 });
 
-app.get("/roles", async (c) => {
+app.get("/roles", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new UserRepository(db);
   const service = new UserService(repo);

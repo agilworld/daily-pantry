@@ -5,5 +5,6 @@ export * from "./validators/user";
 export * from "./validators/seller";
 export * from "./validators/meal";
 export * from "./validators/order";
+export * from "./validators/notes";
 export * from "./utils";
 export * from "./constants/meal";

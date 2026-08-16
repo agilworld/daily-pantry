@@ -34,6 +34,7 @@ function createMockRepo(overrides: Partial<OrderRepository> = {}): OrderReposito
   return {
     createOrder: mock(() => Promise.resolve(makeOrder())),
     findById: mock(() => Promise.resolve(makeOrder())),
+    findAll: mock(() => Promise.resolve([makeOrder()])),
     findByEmployee: mock(() => Promise.resolve([makeOrder()])),
     findBySeller: mock(() => Promise.resolve([makeOrder()])),
     findReadyForDelivery: mock(() => Promise.resolve([makeOrder()])),
@@ -71,25 +72,32 @@ describe("OrderService", () => {
   describe("state transitions", () => {
     it("confirms a placed order", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
-      const order = await service.confirmOrder("order-1", "seller-1");
+      const order = await service.confirmOrder("order-1", "ob-1");
       expect(order.status).toBe("placed"); // stub returns placed unchanged, but updateStatus was called
       expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "confirmed", "confirmed_at");
     });
 
-    it("rejects confirming an order not owned by the seller", async () => {
+    it("confirms any order regardless of seller ownership (office boy)", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed", seller_id: "seller-2" }));
-      await expect(service.confirmOrder("order-1", "seller-1")).rejects.toThrow("Not your order");
+      await service.confirmOrder("order-1", "ob-1");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "confirmed", "confirmed_at");
     });
 
     it("rejects invalid transition (delivered -> confirmed)", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "delivered" }));
-      await expect(service.confirmOrder("order-1", "seller-1")).rejects.toThrow("Cannot transition from delivered to confirmed");
+      await expect(service.confirmOrder("order-1", "ob-1")).rejects.toThrow("Cannot transition from delivered to confirmed");
     });
 
     it("marks order ready from confirmed", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "confirmed" }));
-      await service.readyOrder("order-1", "seller-1", "Almost done");
+      await service.readyOrder("order-1", "ob-1", "Almost done");
       expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "ready", "ready_at", "Almost done");
+    });
+
+    it("readies any order regardless of seller ownership (office boy)", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "confirmed", seller_id: "seller-2" }));
+      await service.readyOrder("order-1", "ob-1", "Ready");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "ready", "ready_at", "Ready");
     });
 
     it("delivers a ready order", async () => {
@@ -101,6 +109,28 @@ describe("OrderService", () => {
     it("rejects delivering from placed (skips state)", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
       await expect(service.deliverOrder("order-1", "ob-1")).rejects.toThrow("Cannot transition from placed to delivered");
+    });
+  });
+
+  describe("date filtering", () => {
+    it("lists all orders with a date filter", async () => {
+      await service.getAllOrders("2026-07-18");
+      expect(repo.findAll).toHaveBeenCalledWith("2026-07-18");
+    });
+
+    it("lists all orders without a date filter", async () => {
+      await service.getAllOrders();
+      expect(repo.findAll).toHaveBeenCalledWith(undefined);
+    });
+
+    it("passes date to getEmployeeOrders", async () => {
+      await service.getEmployeeOrders("emp-1", "2026-07-18");
+      expect(repo.findByEmployee).toHaveBeenCalledWith("emp-1", "2026-07-18");
+    });
+
+    it("passes date to getSellerOrders", async () => {
+      await service.getSellerOrders("seller-1", "placed", "2026-07-18");
+      expect(repo.findBySeller).toHaveBeenCalledWith("seller-1", "placed", "2026-07-18");
     });
   });
 

@@ -70,13 +70,15 @@ export class UserRepository {
 
   async updateUser(
     id: string,
-    data: { name?: string; email?: string; is_active?: boolean; phone_no?: string | null },
+    data: { name?: string; email?: string; is_active?: boolean; phone_no?: string | null; description?: string; avatar?: string },
   ) {
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.is_active !== undefined) updateData.is_active = data.is_active;
     if (data.phone_no !== undefined) updateData.phone_no = data.phone_no;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.avatar !== undefined) updateData.avatar = data.avatar;
 
     await this.db.update(users).set(updateData).where(eq(users.id, id));
   }

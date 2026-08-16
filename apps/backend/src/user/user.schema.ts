@@ -14,3 +14,11 @@ export const updateUserBodySchema = z.object({
   is_active: z.boolean().optional(),
   phone_no: z.string().optional(),
 });
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  phone_no: z.string().optional(),
+  description: z.string().max(500).optional(),
+  avatar: z.string().optional(),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -1,7 +1,6 @@
 ﻿import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import {
-  useMyOrders,
   useSellerOrders,
   useAllOrders,
   useConfirmOrder,
@@ -271,12 +270,10 @@ export function FulfillmentPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const role = user?.role_name;
-  const userId = user?.id;
   // ---------- Data fetching per role ----------
 
   const { data: allOrders, isLoading: allLoading } = useAllOrders(date || undefined);
   const { data: sellerOrders, isLoading: sellerLoading } = useSellerOrders(date || undefined);
-  const { data: myOrders, isLoading: myLoading } = useMyOrders(date || undefined);
 
   // ---------- Modal handlers ----------
 
@@ -312,10 +309,7 @@ export function FulfillmentPage() {
   // ---------- Cancel permission ----------
 
   const canCancel = (order: Order): boolean => {
-    if (!isCancellable(order.status)) return false;
-    if (role === "employee") return order.employee_id === userId;
-    if (role === "office_boy") return true;
-    return false;
+    return role === "office_boy" && isCancellable(order.status);
   };
 
   // ---------- Filter helper ----------
@@ -336,8 +330,8 @@ export function FulfillmentPage() {
   };
 
   // ---------- Shared order action buttons ----------
-  // Office boy completes everything (confirm -> ready -> deliver).
-  // Sellers only view orders. Managers only view orders.
+  // Office boy completes everything (confirm -> ready -> deliver) and can cancel.
+  // Sellers only view orders (read-only).
 
   const renderOrderActions = (order: Order) => {
     const buttons: React.ReactNode[] = [];
@@ -444,43 +438,6 @@ export function FulfillmentPage() {
               ) : (
                 <OrderList
                   orders={filterByStatus(sellerOrders ?? [], statusFilter)}
-                  renderActions={renderOrderActions}
-                />
-              )}
-            </section>
-          )}
-
-          {/* ======== MANAGER VIEW (read-only all orders) ======== */}
-          {role === "manager" && (
-            <section>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">All Orders</h3>
-              <div className="mb-3">
-                <StatusFilterTabs
-                  selected={statusFilter}
-                  onChange={setStatusFilter}
-                  counts={allOrders ? statusCounts(allOrders) : undefined}
-                />
-              </div>
-              {allLoading ? (
-                <SectionSkeleton />
-              ) : (
-                <OrderList
-                  orders={filterByStatus(allOrders ?? [], statusFilter)}
-                  renderActions={renderOrderActions}
-                />
-              )}
-            </section>
-          )}
-
-          {/* ======== EMPLOYEE VIEW (own orders, cancel own) ======== */}
-          {role === "employee" && (
-            <section>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">My Orders</h3>
-              {myLoading ? (
-                <SectionSkeleton />
-              ) : (
-                <OrderList
-                  orders={myOrders ?? []}
                   renderActions={renderOrderActions}
                 />
               )}

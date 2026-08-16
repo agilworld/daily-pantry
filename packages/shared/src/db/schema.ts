@@ -38,7 +38,7 @@ export const sessions = sqliteTable("sessions", {
 
 export const categories = sqliteTable("categories", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  seller_id: text("seller_id").notNull().references(() => users.id),
+  seller_id: text("seller_id").references(() => users.id), // nullable = creator
   name: text("name").notNull(),
   is_active: integer("is_active", { mode: "boolean" }).default(true),
   created_at: text("created_at").default(sql`(current_timestamp)`),
@@ -78,6 +78,16 @@ export const orders = sqliteTable("orders", {
   ready_at: text("ready_at"),
   delivered_at: text("delivered_at"),
   cancelled_at: text("cancelled_at"),
+  created_at: text("created_at").default(sql`(current_timestamp)`),
+  deleted_at: text("deleted_at"),
+  updated_at: text("updated_at"),
+});
+
+export const notes = sqliteTable("notes", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  author_id: text("author_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  is_broadcast: integer("is_broadcast", { mode: "boolean" }).default(true),
   created_at: text("created_at").default(sql`(current_timestamp)`),
   deleted_at: text("deleted_at"),
   updated_at: text("updated_at"),

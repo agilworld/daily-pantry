@@ -5,28 +5,30 @@ import { sql } from "drizzle-orm";
 async function ensureDatabase() {
   const db = createDb();
 
-  // Check if roles table has data
+  // Always push schema (idempotent — creates missing tables, preserves data)
+  console.log("🔄 Syncing database schema...");
+  // serve.ts lives in src/, but drizzle.config.ts is at the backend app root
+  const backendRoot = import.meta.dir.replace(/[\\/]src$/, "");
+  const push = Bun.spawnSync(["bunx", "drizzle-kit", "push"], {
+    cwd: backendRoot,
+    env: process.env,
+  });
+  if (push.exitCode !== 0) {
+    console.error("❌ drizzle-kit push failed:", push.stderr.toString());
+    process.exit(1);
+  }
+  console.log("✅ Schema synced");
+
+  // Seed roles only if empty
   const result = await db.select({ count: sql<number>`count(*)` }).from(roles);
   const hasData = result[0]?.count > 0;
-
   if (!hasData) {
-    console.log("🔄 Running drizzle-kit push...");
-    const push = Bun.spawnSync(["bunx", "drizzle-kit", "push"], {
-      cwd: import.meta.dir,
-      env: process.env,
-    });
-    if (push.exitCode !== 0) {
-      console.error("❌ drizzle-kit push failed:", push.stderr.toString());
-      process.exit(1);
-    }
-    console.log("✅ Tables created/updated");
-
     console.log("🌱 Running seed...");
     const { seed } = await import("./db/seed");
     await seed();
     console.log("✅ Roles seeded");
   } else {
-    console.log("✅ Database already initialized");
+    console.log("✅ Roles already seeded");
   }
 }
 

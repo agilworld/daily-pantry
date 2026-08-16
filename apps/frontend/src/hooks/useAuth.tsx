@@ -101,3 +101,19 @@ export function useLogout() {
     },
   });
 }
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name?: string; phone_no?: string; description?: string; avatar?: string }) =>
+      api.put<{ user: AuthUser }>("/users/me", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      api.post<{ message: string }>("/auth/change-password", data),
+  });
+}

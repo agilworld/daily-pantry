@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { roleGuard } from "../middleware/role.middleware";
+import { authMiddleware } from "../middleware/auth.middleware";
 import { createMealSchema, updateMealSchema } from "./meal.schema";
 import { MealRepository } from "./meal.repository";
 import { MealService } from "./meal.service";
@@ -16,10 +17,19 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// All routes require seller role
-app.use("*", roleGuard("seller"));
+// Public-ish: list active meals for ordering (employees / office boy browsing).
+// Must be registered BEFORE /:id so it is not shadowed.
+app.get("/active", authMiddleware, async (c) => {
+  const db = c.get("db");
+  const repo = new MealRepository(db);
+  const service = new MealService(repo);
+  const category = c.req.query("category");
+  const meals = await service.getActiveMeals(category);
+  return c.json({ meals }, 200);
+});
 
-app.get("/", async (c) => {
+// Seller-scoped routes
+app.get("/", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -29,7 +39,7 @@ app.get("/", async (c) => {
   return c.json({ meals }, 200);
 });
 
-app.post("/", async (c) => {
+app.post("/", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -48,7 +58,7 @@ app.post("/", async (c) => {
   return c.json({ meal }, 201);
 });
 
-app.get("/:id", async (c) => {
+app.get("/:id", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -59,7 +69,7 @@ app.get("/:id", async (c) => {
   return c.json({ meal }, 200);
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -79,7 +89,7 @@ app.patch("/:id", async (c) => {
   }
 });
 
-app.patch("/:id/toggle", async (c) => {
+app.patch("/:id/toggle", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -93,7 +103,7 @@ app.patch("/:id/toggle", async (c) => {
   }
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:id", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -105,19 +115,6 @@ app.delete("/:id", async (c) => {
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Meal not found" }, 404);
   }
-});
-
-/**
- * Public-ish: list active meals for ordering (employees / office boy browsing).
- * Not behind roleGuard("seller") — access control happens at a higher level.
- */
-app.get("/active", async (c) => {
-  const db = c.get("db");
-  const repo = new MealRepository(db);
-  const service = new MealService(repo);
-  const category = c.req.query("category");
-  const meals = await service.getActiveMeals(category);
-  return c.json({ meals }, 200);
 });
 
 export default app;

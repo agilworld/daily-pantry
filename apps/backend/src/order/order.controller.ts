@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { roleGuard } from "../middleware/role.middleware";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { placeOrderSchema, readyOrderSchema, deliverOrderSchema, cancelOrderSchema } from "./order.schema";
+import { placeOrderSchema, readyOrderSchema, deliverOrderSchema, cancelOrderSchema, listOrdersQuerySchema } from "./order.schema";
 import { OrderRepository } from "./order.repository";
 import { OrderService } from "./order.service";
 import { MealRepository } from "../meal/meal.repository";
@@ -18,8 +18,8 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Employee places order
-app.post("/", roleGuard("employee"), async (c) => {
+// All authenticated roles place orders
+app.post("/", authMiddleware, async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);
   const service = new OrderService(repo);
@@ -52,29 +52,47 @@ app.post("/", roleGuard("employee"), async (c) => {
   }
 });
 
-// Employee views own orders
-app.get("/my", roleGuard("employee"), async (c) => {
+// All roles view own orders (optional date filter)
+app.get("/my", authMiddleware, async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);
   const service = new OrderService(repo);
   const user = c.get("user");
-  const orders = await service.getEmployeeOrders(user.id);
+  const date = c.req.query("date");
+  const orders = await service.getEmployeeOrders(user.id, date);
   return c.json({ orders }, 200);
 });
 
-// Seller views orders for their meals
+// Office boy lists all orders by date (defaults to today)
+app.get("/", roleGuard("office_boy"), async (c) => {
+  const db = c.get("db");
+  const repo = new OrderRepository(db);
+  const service = new OrderService(repo);
+
+  const query = c.req.query();
+  const parsed = listOrdersQuerySchema.safeParse(query);
+  if (!parsed.success) {
+    return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
+  }
+  const date = parsed.data.date ?? new Date().toISOString().slice(0, 10);
+  const orders = await service.getAllOrders(date);
+  return c.json({ orders }, 200);
+});
+
+// Seller views orders for their meals (optional date filter)
 app.get("/seller", roleGuard("seller"), async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);
   const service = new OrderService(repo);
   const user = c.get("user");
   const status = c.req.query("status") as string | undefined;
-  const orders = await service.getSellerOrders(user.id, status as any);
+  const date = c.req.query("date");
+  const orders = await service.getSellerOrders(user.id, status as any, date);
   return c.json({ orders }, 200);
 });
 
-// Seller confirms order (placed -> confirmed)
-app.patch("/:id/confirm", roleGuard("seller"), async (c) => {
+// Office boy confirms order (placed -> confirmed)
+app.patch("/:id/confirm", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);
   const service = new OrderService(repo);
@@ -90,8 +108,8 @@ app.patch("/:id/confirm", roleGuard("seller"), async (c) => {
   }
 });
 
-// Seller marks order ready (confirmed -> ready)
-app.patch("/:id/ready", roleGuard("seller"), async (c) => {
+// Office boy marks order ready (confirmed -> ready)
+app.patch("/:id/ready", roleGuard("office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);
   const service = new OrderService(repo);
@@ -143,7 +161,7 @@ app.get("/ready", roleGuard("office_boy"), async (c) => {
   return c.json({ orders }, 200);
 });
 
-// Cancel order (employee own / seller own / office_boy any) — authenticated
+// Cancel order (own / office_boy any) — authenticated
 app.patch("/:id/cancel", authMiddleware, async (c) => {
   const db = c.get("db");
   const repo = new OrderRepository(db);

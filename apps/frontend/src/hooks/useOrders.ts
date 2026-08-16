@@ -22,18 +22,18 @@ export interface Order {
   cancelled_at: string | null;
 }
 
-export function useMyOrders() {
+export function useMyOrders(date?: string) {
   return useQuery({
-    queryKey: ["orders", "my"],
-    queryFn: () => api.get<{ orders: Order[] }>("/orders/my").then(r => r.orders),
+    queryKey: ["orders", "my", { date: date ?? null }],
+    queryFn: () => api.get<{ orders: Order[] }>(`/orders/my${date ? `?date=${date}` : ""}`).then(r => r.orders),
     staleTime: 30 * 1000,
   });
 }
 
-export function useSellerOrders() {
+export function useSellerOrders(date?: string) {
   return useQuery({
-    queryKey: ["orders", "seller"],
-    queryFn: () => api.get<{ orders: Order[] }>("/orders/seller").then(r => r.orders),
+    queryKey: ["orders", "seller", { date: date ?? null }],
+    queryFn: () => api.get<{ orders: Order[] }>(`/orders/seller${date ? `?date=${date}` : ""}`).then(r => r.orders),
     staleTime: 30 * 1000,
   });
 }
@@ -93,12 +93,14 @@ export function useCancelOrder() {
   });
 }
 
-// ponytail: enable conditionally when only managers should see all orders
-export function useAllOrders(enabled = true) {
+// ponytail: date-aware "all orders" used by office boy (with actions) and manager (read-only)
+export function useAllOrders(date?: string) {
   return useQuery({
-    queryKey: ["orders", "all"],
-    queryFn: () => api.get<{ orders: Order[] }>("/orders").then(r => r.orders),
+    queryKey: ["orders", "all", { date: date ?? null }],
+    queryFn: () =>
+      api
+        .get<{ orders: Order[] }>(`/orders${date ? `?date=${date}` : ""}`)
+        .then(r => r.orders),
     staleTime: 30 * 1000,
-    enabled,
   });
 }

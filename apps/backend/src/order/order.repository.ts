@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, like, sql } from "drizzle-orm";
 import { orders } from "@dailypantry/shared";
 import type { DbClient } from "../middleware/db.middleware";
 import type { Order, OrderStatus } from "./order.model";
@@ -29,17 +29,30 @@ export class OrderRepository {
     return rows.length ? (rows[0] as Order) : null;
   }
 
-  async findByEmployee(employeeId: string): Promise<Order[]> {
+  async findAll(date?: string): Promise<Order[]> {
+    const conditions: ReturnType<typeof sql>[] = [];
+    if (date) conditions.push(like(orders.order_date, `${date}%`));
     return this.db
       .select()
       .from(orders)
-      .where(eq(orders.employee_id, employeeId))
+      .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(orders.created_at)) as Promise<Order[]>;
   }
 
-  async findBySeller(sellerId: string, status?: OrderStatus): Promise<Order[]> {
+  async findByEmployee(employeeId: string, date?: string): Promise<Order[]> {
+    const conditions = [eq(orders.employee_id, employeeId)];
+    if (date) conditions.push(like(orders.order_date, `${date}%`));
+    return this.db
+      .select()
+      .from(orders)
+      .where(and(...conditions))
+      .orderBy(desc(orders.created_at)) as Promise<Order[]>;
+  }
+
+  async findBySeller(sellerId: string, status?: OrderStatus, date?: string): Promise<Order[]> {
     const conditions = [eq(orders.seller_id, sellerId)];
     if (status) conditions.push(eq(orders.status, status));
+    if (date) conditions.push(like(orders.order_date, `${date}%`));
     return this.db
       .select()
       .from(orders)
