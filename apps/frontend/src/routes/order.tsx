@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { RoleGuard } from "../components/RoleGuard";
 import { Layout } from "../components/Layout";
-import { useMeals } from "../hooks/useMeals";
+import { useActiveMeals } from "../hooks/useMeals";
 import { usePlaceOrder, useMyOrders } from "../hooks/useOrders";
 import { MEAL_CATEGORIES } from "@dailypantry/shared";
 
@@ -28,7 +28,7 @@ function capitalize(s: string) {
 
 export function OrderPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>(MEAL_CATEGORIES[0]);
-  const { data: meals, isLoading: mealsLoading } = useMeals(selectedCategory);
+  const { data: meals, isLoading: mealsLoading } = useActiveMeals(selectedCategory);
   const { data: orders } = useMyOrders();
 
   const [modalMeal, setModalMeal] = useState<{
@@ -40,7 +40,6 @@ export function OrderPage() {
   const [notes, setNotes] = useState("");
 
   const placeOrder = usePlaceOrder();
-  const activeMeals = meals?.filter((m) => m.is_active);
 
   const openModal = (meal: { id: string; name: string; price_cents: number }) => {
     setModalMeal(meal);
@@ -58,7 +57,7 @@ export function OrderPage() {
 
   return (
     <ProtectedRoute>
-      <RoleGuard allowedRoles={["employee"]}>
+      <RoleGuard allowedRoles={["employee", "seller", "office_boy", "manager"]}>
         <Layout title="Order Meals">
           <div className="space-y-6">
             {/* Category Tabs */}
@@ -86,7 +85,7 @@ export function OrderPage() {
             ) : meals && meals.length > 0 ? (
               <div className="grid grid-cols-2 gap-3">
                 {meals.map((meal) => {
-                  const available = activeMeals?.some((m) => m.id === meal.id) ?? meal.is_active;
+                  const available = meal.is_active;
                   return (
                     <div
                       key={meal.id}

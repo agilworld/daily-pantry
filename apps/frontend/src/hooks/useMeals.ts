@@ -22,6 +22,21 @@ export function useMeals(category?: string) {
   });
 }
 
+/**
+ * Public catalog: active meals for ordering (all authenticated roles).
+ * Hits GET /meals/active which is seller-agnostic and returns only is_active meals.
+ */
+export function useActiveMeals(category?: string) {
+  return useQuery({
+    queryKey: ["meals", "active", { category }],
+    queryFn: () =>
+      api
+        .get<{ meals: Meal[] }>(`/meals/active${category ? `?category=${category}` : ""}`)
+        .then((r) => r.meals),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useCreateMeal() {
   const qc = useQueryClient();
   return useMutation({

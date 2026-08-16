@@ -23,9 +23,19 @@ export function DashboardPage() {
 
             {/* Role-specific actions */}
             {user?.role_name === "employee" && (
-              <div className="bg-white rounded-xl p-5 shadow-sm border">
-                <p className="text-gray-600 text-sm">Order meals from available sellers.</p>
-                <p className="text-gray-400 text-xs mt-2">Meal ordering coming in Phase 2.</p>
+              <div className="space-y-3">
+                <Link
+                  to="/order"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🍽️</span>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Order Meals</h3>
+                      <p className="text-sm text-gray-500">Browse the catalog and place an order</p>
+                    </div>
+                  </div>
+                </Link>
               </div>
             )}
 
@@ -43,15 +53,30 @@ export function DashboardPage() {
                     </div>
                   </div>
                 </Link>
-                <div className="bg-white rounded-xl p-5 shadow-sm border opacity-60">
+                <Link
+                  to="/menu"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🍽️</span>
+                    <span className="text-2xl">📋</span>
                     <div>
                       <h3 className="font-medium text-gray-900">Manage Meals</h3>
-                      <p className="text-sm text-gray-500">Coming in Phase 2</p>
+                      <p className="text-sm text-gray-500">Add, edit, and toggle meal availability</p>
                     </div>
                   </div>
-                </div>
+                </Link>
+                <Link
+                  to="/fulfillment"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📦</span>
+                    <div>
+                      <h3 className="font-medium text-gray-900">View Orders</h3>
+                      <p className="text-sm text-gray-500">Track orders for your meals</p>
+                    </div>
+                  </div>
+                </Link>
               </div>
             )}
 
@@ -69,15 +94,30 @@ export function DashboardPage() {
                     </div>
                   </div>
                 </Link>
-                <div className="bg-white rounded-xl p-5 shadow-sm border opacity-60">
+                <Link
+                  to="/fulfillment"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">📋</span>
+                    <span className="text-2xl">📦</span>
                     <div>
-                      <h3 className="font-medium text-gray-900">Today's Orders</h3>
-                      <p className="text-sm text-gray-500">Coming in Phase 2</p>
+                      <h3 className="font-medium text-gray-900">Manage Orders</h3>
+                      <p className="text-sm text-gray-500">Confirm, mark ready, and deliver orders</p>
                     </div>
                   </div>
-                </div>
+                </Link>
+                <Link
+                  to="/order"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🍽️</span>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Order Meals</h3>
+                      <p className="text-sm text-gray-500">Browse the catalog and place an order</p>
+                    </div>
+                  </div>
+                </Link>
               </div>
             )}
 
@@ -95,15 +135,30 @@ export function DashboardPage() {
                     </div>
                   </div>
                 </Link>
-                <div className="bg-white rounded-xl p-5 shadow-sm border opacity-60">
+                <Link
+                  to="/fulfillment"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">📊</span>
                     <div>
-                      <h3 className="font-medium text-gray-900">Reports</h3>
-                      <p className="text-sm text-gray-500">Coming in Phase 2</p>
+                      <h3 className="font-medium text-gray-900">All Orders</h3>
+                      <p className="text-sm text-gray-500">View all orders across sellers</p>
                     </div>
                   </div>
-                </div>
+                </Link>
+                <Link
+                  to="/order"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🍽️</span>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Order Meals</h3>
+                      <p className="text-sm text-gray-500">Browse the catalog and place an order</p>
+                    </div>
+                  </div>
+                </Link>
               </div>
             )}
           </div>

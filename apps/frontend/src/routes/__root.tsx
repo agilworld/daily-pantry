@@ -49,24 +49,15 @@ function AppShell() {
               <span className="text-xl">🏠</span>
               <span>Home</span>
             </Link>
-            {(user.role_name === "office_boy" || user.role_name === "manager") && (
-              <Link
-                to="/users"
-                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
-              >
-                <span className="text-xl">👥</span>
-                <span>Users</span>
-              </Link>
-            )}
-            {user.role_name === "employee" && (
-              <Link
-                to="/order"
-                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
-              >
-                <span className="text-xl">🍽️</span>
-                <span>Order</span>
-              </Link>
-            )}
+            {/* Order — public catalog, all roles can order */}
+            <Link
+              to="/order"
+              className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+            >
+              <span className="text-xl">🍽️</span>
+              <span>Order</span>
+            </Link>
+            {/* Menu — seller only (sellers manage their own meals) */}
             {user.role_name === "seller" && (
               <Link
                 to="/menu"
@@ -76,6 +67,27 @@ function AppShell() {
                 <span>Menu</span>
               </Link>
             )}
+            {/* Fulfillment — office boy completes orders, seller views own orders */}
+            {(user.role_name === "office_boy" || user.role_name === "seller") && (
+              <Link
+                to="/fulfillment"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">📦</span>
+                <span>Orders</span>
+              </Link>
+            )}
+            {/* Users — office boy + manager */}
+            {(user.role_name === "office_boy" || user.role_name === "manager") && (
+              <Link
+                to="/users"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">👥</span>
+                <span>Users</span>
+              </Link>
+            )}
+            {/* Profile — seller only (profile page is seller-scoped) */}
             {user.role_name === "seller" && (
               <Link
                 to="/profile"
@@ -83,15 +95,6 @@ function AppShell() {
               >
                 <span className="text-xl">🏪</span>
                 <span>Store</span>
-              </Link>
-            )}
-            {user.role_name === "office_boy" && (
-              <Link
-                to="/fulfillment"
-                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
-              >
-                <span className="text-xl">📦</span>
-                <span>Fulfill</span>
               </Link>
             )}
           </div>
