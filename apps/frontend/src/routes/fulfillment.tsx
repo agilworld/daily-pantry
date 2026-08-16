@@ -1,9 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import {
   useMyOrders,
   useSellerOrders,
-  useReadyOrders,
   useAllOrders,
   useConfirmOrder,
   useReadyOrder,
@@ -44,6 +43,10 @@ function formatIDR(cents: number) {
 
 function isCancellable(status: string): boolean {
   return status === "placed" || status === "confirmed" || status === "ready";
+}
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // --- FulfillmentNotesModal ---
@@ -194,7 +197,37 @@ function StatusFilterTabs({
   );
 }
 
-// --- Order list (shared between all-orders and role sections) ---
+// --- Date filter ---
+
+function DateFilter({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (date: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="date"
+        value={value}
+        max={todayISO()}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      />
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="shrink-0 px-3 py-2 text-sm text-blue-600 font-medium hover:text-blue-800"
+        >
+          Today
+        </button>
+      )}
+    </div>
+  );
+}
+
+// --- Order list (shared between role sections) ---
 
 function OrderList({
   orders,
@@ -233,19 +266,17 @@ export function FulfillmentPage() {
     orderId: string;
   } | null>(null);
 
-  // All Orders expandable & filter
-  const [allOrdersExpanded, setAllOrdersExpanded] = useState(false);
+  // Filters
+  const [date, setDate] = useState<string>(todayISO()); // default today (backend also defaults to today)
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const role = user?.role_name;
   const userId = user?.id;
-
   // ---------- Data fetching per role ----------
 
-  const { data: sellerOrders, isLoading: sellerLoading } = useSellerOrders();
-  const { data: readyOrders, isLoading: readyLoading } = useReadyOrders();
-  const { data: allOrders, isLoading: allLoading } = useAllOrders(role === "manager");
-  const { data: myOrders, isLoading: myLoading } = useMyOrders();
+  const { data: allOrders, isLoading: allLoading } = useAllOrders(date || undefined);
+  const { data: sellerOrders, isLoading: sellerLoading } = useSellerOrders(date || undefined);
+  const { data: myOrders, isLoading: myLoading } = useMyOrders(date || undefined);
 
   // ---------- Modal handlers ----------
 
@@ -283,7 +314,6 @@ export function FulfillmentPage() {
   const canCancel = (order: Order): boolean => {
     if (!isCancellable(order.status)) return false;
     if (role === "employee") return order.employee_id === userId;
-    if (role === "seller") return order.seller_id === userId;
     if (role === "office_boy") return true;
     return false;
   };
@@ -306,11 +336,13 @@ export function FulfillmentPage() {
   };
 
   // ---------- Shared order action buttons ----------
+  // Office boy completes everything (confirm -> ready -> deliver).
+  // Sellers only view orders. Managers only view orders.
 
   const renderOrderActions = (order: Order) => {
     const buttons: React.ReactNode[] = [];
 
-    if (role === "seller") {
+    if (role === "office_boy") {
       if (order.status === "placed") {
         buttons.push(
           <button
@@ -329,22 +361,21 @@ export function FulfillmentPage() {
             onClick={() => setModal({ title: "Mark Ready", action: "ready", orderId: order.id })}
             className="flex-1 bg-green-600 text-white text-sm py-1.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
-            Mark Ready
+            Ready
           </button>,
         );
       }
-    }
-
-    if (role === "office_boy" && order.status === "ready") {
-      buttons.push(
-        <button
-          key="deliver"
-          onClick={() => setModal({ title: "Deliver Order", action: "deliver", orderId: order.id })}
-          className="flex-1 bg-green-600 text-white text-sm py-1.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
-        >
-          Deliver
-        </button>,
-      );
+      if (order.status === "ready") {
+        buttons.push(
+          <button
+            key="deliver"
+            onClick={() => setModal({ title: "Deliver Order", action: "deliver", orderId: order.id })}
+            className="flex-1 bg-green-600 text-white text-sm py-1.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
+          >
+            Deliver
+          </button>,
+        );
+      }
     }
 
     if (canCancel(order)) {
@@ -370,101 +401,56 @@ export function FulfillmentPage() {
     <ProtectedRoute>
       <Layout title="Fulfillment">
         <div className="space-y-6">
-          {/* ======== SELLER VIEW ======== */}
-          {role === "seller" && (
-            <>
-              {/* Orders to Confirm */}
-              <section>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  Orders to Confirm
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({sellerOrders?.filter((o) => o.status === "placed").length ?? 0})
-                  </span>
-                </h3>
-                {sellerLoading ? (
-                  <SectionSkeleton />
-                ) : (
-                  <OrderList
-                    orders={sellerOrders?.filter((o) => o.status === "placed") ?? []}
-                    renderActions={renderOrderActions}
-                  />
-                )}
-              </section>
+          {/* ======== DATE FILTER ======== */}
+          <section>
+            <DateFilter value={date} onChange={setDate} />
+          </section>
 
-              {/* In Progress — mark confirmed orders as ready */}
-              <section>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  In Progress
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({sellerOrders?.filter((o) => o.status === "confirmed").length ?? 0})
-                  </span>
-                </h3>
-                {sellerLoading ? (
-                  <SectionSkeleton />
-                ) : (
-                  <OrderList
-                    orders={sellerOrders?.filter((o) => o.status === "confirmed") ?? []}
-                    renderActions={renderOrderActions}
-                  />
-                )}
-              </section>
-
-              {/* Orders Ready */}
-              <section>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  Orders Ready
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({sellerOrders?.filter((o) => o.status === "ready").length ?? 0})
-                  </span>
-                </h3>
-                {sellerLoading ? (
-                  <SectionSkeleton />
-                ) : (
-                  <OrderList
-                    orders={sellerOrders?.filter((o) => o.status === "ready") ?? []}
-                    renderActions={renderOrderActions}
-                  />
-                )}
-              </section>
-            </>
-          )}
-
-          {/* ======== OFFICE BOY VIEW ======== */}
+          {/* ======== OFFICE BOY VIEW (completes everything) ======== */}
           {role === "office_boy" && (
             <section>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                Ready for Delivery
-                <span className="text-sm font-normal text-gray-500 ml-2">
-                  ({readyOrders?.length ?? 0})
-                </span>
-              </h3>
-              {readyLoading ? (
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">All Orders</h3>
+              <div className="mb-3">
+                <StatusFilterTabs
+                  selected={statusFilter}
+                  onChange={setStatusFilter}
+                  counts={allOrders ? statusCounts(allOrders) : undefined}
+                />
+              </div>
+              {allLoading ? (
                 <SectionSkeleton />
               ) : (
                 <OrderList
-                  orders={readyOrders ?? []}
+                  orders={filterByStatus(allOrders ?? [], statusFilter)}
                   renderActions={renderOrderActions}
                 />
               )}
             </section>
           )}
 
-          {/* ======== EMPLOYEE VIEW ======== */}
-          {role === "employee" && (
+          {/* ======== SELLER VIEW (read-only) ======== */}
+          {role === "seller" && (
             <section>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">My Orders</h3>
-              {myLoading ? (
+              <div className="mb-3">
+                <StatusFilterTabs
+                  selected={statusFilter}
+                  onChange={setStatusFilter}
+                  counts={sellerOrders ? statusCounts(sellerOrders) : undefined}
+                />
+              </div>
+              {sellerLoading ? (
                 <SectionSkeleton />
               ) : (
                 <OrderList
-                  orders={myOrders ?? []}
+                  orders={filterByStatus(sellerOrders ?? [], statusFilter)}
                   renderActions={renderOrderActions}
                 />
               )}
             </section>
           )}
 
-          {/* ======== MANAGER VIEW (All Orders read-only) ======== */}
+          {/* ======== MANAGER VIEW (read-only all orders) ======== */}
           {role === "manager" && (
             <section>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">All Orders</h3>
@@ -486,53 +472,17 @@ export function FulfillmentPage() {
             </section>
           )}
 
-          {/* ======== SHARED: ALL ORDERS (expandable, below role-specific sections) ======== */}
-          {role && role !== "manager" && (
-            <section className="border-t border-gray-200 pt-4">
-              <button
-                onClick={() => setAllOrdersExpanded(!allOrdersExpanded)}
-                className="w-full flex items-center justify-between py-2 text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <span className="text-lg font-semibold">All Orders</span>
-                <span className="text-sm text-blue-600 font-medium">
-                  {allOrdersExpanded ? "Hide" : "Show"}
-                </span>
-              </button>
-
-              {allOrdersExpanded && (
-                <div className="mt-3 space-y-3">
-                  <StatusFilterTabs
-                    selected={statusFilter}
-                    onChange={setStatusFilter}
-                    counts={
-                      role === "seller" && sellerOrders
-                        ? statusCounts(sellerOrders)
-                        : role === "office_boy" && readyOrders
-                          ? statusCounts(readyOrders)
-                          : myOrders
-                            ? statusCounts(myOrders)
-                            : undefined
-                    }
-                  />
-                  {role === "seller" && (
-                    <OrderList
-                      orders={filterByStatus(sellerOrders ?? [], statusFilter)}
-                      renderActions={renderOrderActions}
-                    />
-                  )}
-                  {role === "office_boy" && (
-                    <OrderList
-                      orders={filterByStatus(readyOrders ?? [], statusFilter)}
-                      renderActions={renderOrderActions}
-                    />
-                  )}
-                  {role === "employee" && (
-                    <OrderList
-                      orders={filterByStatus(myOrders ?? [], statusFilter)}
-                      renderActions={renderOrderActions}
-                    />
-                  )}
-                </div>
+          {/* ======== EMPLOYEE VIEW (own orders, cancel own) ======== */}
+          {role === "employee" && (
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">My Orders</h3>
+              {myLoading ? (
+                <SectionSkeleton />
+              ) : (
+                <OrderList
+                  orders={myOrders ?? []}
+                  renderActions={renderOrderActions}
+                />
               )}
             </section>
           )}

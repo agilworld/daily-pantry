@@ -77,6 +77,14 @@ function AppShell() {
                 <span>Orders</span>
               </Link>
             )}
+            {/* Notes — all roles can view, seller + office boy can create */}
+            <Link
+              to="/notes"
+              className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+            >
+              <span className="text-xl">📝</span>
+              <span>Notes</span>
+            </Link>
             {/* Users — office boy + manager */}
             {(user.role_name === "office_boy" || user.role_name === "manager") && (
               <Link

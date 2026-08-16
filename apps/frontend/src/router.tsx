@@ -13,6 +13,7 @@ import { ProfilePage } from "./routes/profile";
 import { OrderPage } from "./routes/order";
 import { MenuPage } from "./routes/menu";
 import { FulfillmentPage } from "./routes/fulfillment";
+import { NotesPage } from "./routes/notes";
 
 const rootRoute = createRootRoute({
   component: RootComponent,
@@ -74,6 +75,12 @@ const fulfillmentRoute = createRoute({
   component: FulfillmentPage,
 });
 
+const notesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notes",
+  component: NotesPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -84,6 +91,7 @@ const routeTree = rootRoute.addChildren([
   orderRoute,
   menuRoute,
   fulfillmentRoute,
+  notesRoute,
 ]);
 
 export const router = createRouter({ routeTree });
