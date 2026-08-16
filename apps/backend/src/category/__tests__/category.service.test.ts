@@ -5,6 +5,7 @@ import { CategoryRepository } from "../category.repository";
 const sampleCategory = {
   id: "category-1",
   name: "Nasi",
+  description: null,
   is_active: true,
   created_at: "2024-01-01T00:00:00.000Z",
   updated_at: null,
@@ -40,25 +41,28 @@ describe("CategoryService", () => {
   });
 
   describe("createCategory", () => {
-    it("creates a category with the creator id", async () => {
-      const category = await service.createCategory("Minuman", "office-boy-1");
+    it("creates a category with the creator id and description", async () => {
+      const category = await service.createCategory(
+        { name: "Minuman", description: "Drinks & refreshments" },
+        "office-boy-1",
+      );
       expect(category.name).toBe("Nasi"); // from mock
-      expect(repo.create).toHaveBeenCalledWith("Minuman", "office-boy-1");
+      expect(repo.create).toHaveBeenCalledWith("Minuman", "Drinks & refreshments", "office-boy-1");
     });
   });
 
   describe("updateCategory", () => {
     it("updates an existing category and returns the updated record", async () => {
-      const category = await service.updateCategory("category-1", "Nasi Goreng");
+      const category = await service.updateCategory("category-1", { name: "Nasi Goreng" });
       expect(category).not.toBeNull();
       expect(category!.id).toBe("category-1");
       expect(repo.findById).toHaveBeenCalledWith("category-1");
-      expect(repo.update).toHaveBeenCalledWith("category-1", "Nasi Goreng");
+      expect(repo.update).toHaveBeenCalledWith("category-1", { name: "Nasi Goreng" });
     });
 
     it("returns null when category does not exist", async () => {
       (repo.findById as any).mockResolvedValue(null);
-      const category = await service.updateCategory("category-99", "Nasi Goreng");
+      const category = await service.updateCategory("category-99", { name: "Nasi Goreng" });
       expect(category).toBeNull();
       expect(repo.update).not.toHaveBeenCalled();
     });

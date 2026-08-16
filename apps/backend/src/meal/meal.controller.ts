@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { roleGuard } from "../middleware/role.middleware";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { createMealSchema, updateMealSchema } from "./meal.schema";
+import { createMealSchema, updateMealSchema, mealQuerySchema } from "./meal.schema";
 import { MealRepository } from "./meal.repository";
 import { MealService } from "./meal.service";
 import type { Env } from "../types/env";
@@ -17,29 +17,36 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Public-ish: list active meals for ordering (employees / office boy browsing).
+// Public-ish: list active meals for ordering (all authenticated roles).
 // Must be registered BEFORE /:id so it is not shadowed.
 app.get("/active", authMiddleware, async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
-  const category = c.req.query("category");
-  const meals = await service.getActiveMeals(category);
+  const query = mealQuerySchema.safeParse(c.req.query());
+  if (!query.success) {
+    return c.json({ error: "Validation failed", details: query.error.flatten() }, 400);
+  }
+  const meals = await service.getActiveMeals(query.data.category_id);
   return c.json({ meals }, 200);
 });
 
-// Seller-scoped routes
-app.get("/", roleGuard("seller"), async (c) => {
+// Seller- and office-boy-scoped routes. Both roles manage ONLY their own meals
+// (seller_id === user.id); neither can touch the other's meals.
+app.get("/", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
   const user = c.get("user");
-  const category = c.req.query("category");
-  const meals = await service.listMeals(user.id, category);
+  const query = mealQuerySchema.safeParse(c.req.query());
+  if (!query.success) {
+    return c.json({ error: "Validation failed", details: query.error.flatten() }, 400);
+  }
+  const meals = await service.listMeals(user.id, query.data.category_id);
   return c.json({ meals }, 200);
 });
 
-app.post("/", roleGuard("seller"), async (c) => {
+app.post("/", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -54,11 +61,12 @@ app.post("/", roleGuard("seller"), async (c) => {
   const meal = await service.createMeal(user.id, {
     ...mealData,
     description: mealData.description ?? null,
+    category_id: mealData.category_id ?? null,
   });
   return c.json({ meal }, 201);
 });
 
-app.get("/:id", roleGuard("seller"), async (c) => {
+app.get("/:id", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -69,7 +77,7 @@ app.get("/:id", roleGuard("seller"), async (c) => {
   return c.json({ meal }, 200);
 });
 
-app.patch("/:id", roleGuard("seller"), async (c) => {
+app.patch("/:id", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -89,7 +97,7 @@ app.patch("/:id", roleGuard("seller"), async (c) => {
   }
 });
 
-app.patch("/:id/toggle", roleGuard("seller"), async (c) => {
+app.patch("/:id/toggle", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);
@@ -103,7 +111,7 @@ app.patch("/:id/toggle", roleGuard("seller"), async (c) => {
   }
 });
 
-app.delete("/:id", roleGuard("seller"), async (c) => {
+app.delete("/:id", roleGuard("seller", "office_boy"), async (c) => {
   const db = c.get("db");
   const repo = new MealRepository(db);
   const service = new MealService(repo);

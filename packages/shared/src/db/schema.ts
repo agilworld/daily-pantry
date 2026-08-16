@@ -38,8 +38,9 @@ export const sessions = sqliteTable("sessions", {
 
 export const categories = sqliteTable("categories", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  seller_id: text("seller_id").references(() => users.id), // nullable = creator
+  seller_id: text("seller_id").references(() => users.id), // nullable = creator (office boy)
   name: text("name").notNull(),
+  description: text("description"),
   is_active: integer("is_active", { mode: "boolean" }).default(true),
   created_at: text("created_at").default(sql`(current_timestamp)`),
   deleted_at: text("deleted_at"),
@@ -52,7 +53,9 @@ export const meals = sqliteTable("meals", {
   name: text("name").notNull(),
   price_cents: integer("price_cents").notNull(),
   description: text("description"),
-  category: text("category").notNull(),
+  // category_id = NULL means "own-selling" (no food-store category).
+  // A non-null value points to a food store (categories table) managed by the office boy.
+  category_id: text("category_id").references(() => categories.id),
   is_active: integer("is_active", { mode: "boolean" }).default(true),
   created_at: text("created_at").default(sql`(current_timestamp)`),
   deleted_at: text("deleted_at"),

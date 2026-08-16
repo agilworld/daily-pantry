@@ -8,7 +8,8 @@ const sampleMeal = {
   name: "Nasi Goreng",
   description: "Spicy fried rice",
   price_cents: 25000,
-  category: "nasi",
+  category_id: null,
+  category_name: null,
   is_active: true,
   created_at: "2024-01-01T00:00:00.000Z",
   updated_at: null,
@@ -16,7 +17,9 @@ const sampleMeal = {
 
 function createMockRepo(overrides: Partial<MealRepository> = {}): MealRepository {
   return {
-    createMeal: mock(() => Promise.resolve({ ...sampleMeal })),
+    createMeal: mock((sellerId: string, data: { name: string; description: string | null; price_cents: number; category_id: string | null }) =>
+      Promise.resolve({ ...sampleMeal, seller_id: sellerId, ...data }),
+    ),
     findById: mock(() => Promise.resolve({ ...sampleMeal })),
     findBySeller: mock(() => Promise.resolve([{ ...sampleMeal }])),
     updateMeal: mock(() => Promise.resolve()),
@@ -37,12 +40,12 @@ describe("MealService", () => {
   });
 
   describe("createMeal", () => {
-    it("creates a meal for the seller", async () => {
+    it("creates an own-selling meal for the user (category_id null)", async () => {
       const meal = await service.createMeal("seller-1", {
         name: "Nasi Goreng",
         description: "Spicy fried rice",
         price_cents: 25000,
-        category: "nasi",
+        category_id: null,
       });
 
       expect(meal.name).toBe("Nasi Goreng");
@@ -52,7 +55,25 @@ describe("MealService", () => {
         name: "Nasi Goreng",
         description: "Spicy fried rice",
         price_cents: 25000,
-        category: "nasi",
+        category_id: null,
+      });
+    });
+
+    it("creates a by-food-store meal for an office boy (category_id set)", async () => {
+      const meal = await service.createMeal("office-boy-1", {
+        name: "Ayam Geprek",
+        description: null,
+        price_cents: 20000,
+        category_id: "11111111-1111-1111-1111-111111111111",
+      });
+
+      expect(meal.seller_id).toBe("office-boy-1");
+      expect(meal.category_id).toBe("11111111-1111-1111-1111-111111111111");
+      expect(repo.createMeal).toHaveBeenCalledWith("office-boy-1", {
+        name: "Ayam Geprek",
+        description: null,
+        price_cents: 20000,
+        category_id: "11111111-1111-1111-1111-111111111111",
       });
     });
   });
@@ -64,17 +85,25 @@ describe("MealService", () => {
       expect(meals[0].seller_id).toBe("seller-1");
     });
 
-    it("passes category filter to repository", async () => {
-      await service.listMeals("seller-1", "nasi");
-      expect(repo.findBySeller).toHaveBeenCalledWith("seller-1", "nasi");
+    it("passes category_id filter to repository", async () => {
+      await service.listMeals("seller-1", "11111111-1111-1111-1111-111111111111");
+      expect(repo.findBySeller).toHaveBeenCalledWith("seller-1", "11111111-1111-1111-1111-111111111111");
     });
   });
 
   describe("updateMeal", () => {
-    it("updates a meal owned by the seller", async () => {
+    it("updates a meal owned by the user", async () => {
       const meal = await service.updateMeal("meal-1", "seller-1", { name: "New Name" });
       expect(meal.name).toBe("Nasi Goreng"); // from mock
       expect(repo.updateMeal).toHaveBeenCalled();
+    });
+
+    it("allows an office boy to update their own meal", async () => {
+      const officeBoyOwned = { ...sampleMeal, seller_id: "office-boy-1" };
+      (repo.findById as any).mockResolvedValue({ ...officeBoyOwned });
+      const meal = await service.updateMeal("meal-1", "office-boy-1", { name: "New Name" });
+      expect(meal.name).toBe("Nasi Goreng"); // from mock
+      expect(repo.updateMeal).toHaveBeenCalledWith("meal-1", "office-boy-1", { name: "New Name" });
     });
 
     it("throws when meal does not exist", async () => {
@@ -83,9 +112,15 @@ describe("MealService", () => {
         .rejects.toThrow("Meal not found");
     });
 
-    it("throws when meal belongs to another seller (ownership check)", async () => {
+    it("throws when meal belongs to another user (ownership check)", async () => {
       (repo.findById as any).mockResolvedValue({ ...sampleMeal, seller_id: "seller-2" });
       await expect(service.updateMeal("meal-1", "seller-1", { name: "X" }))
+        .rejects.toThrow("Meal not found");
+    });
+
+    it("throws when an office boy tries to update a seller's meal", async () => {
+      (repo.findById as any).mockResolvedValue({ ...sampleMeal, seller_id: "seller-1" });
+      await expect(service.updateMeal("meal-1", "office-boy-1", { name: "X" }))
         .rejects.toThrow("Meal not found");
     });
   });
@@ -97,7 +132,7 @@ describe("MealService", () => {
       expect(repo.toggleActive).toHaveBeenCalledWith("meal-1", "seller-1");
     });
 
-    it("throws when meal belongs to another seller", async () => {
+    it("throws when meal belongs to another user", async () => {
       (repo.findById as any).mockResolvedValue({ ...sampleMeal, seller_id: "seller-2" });
       await expect(service.toggleActive("meal-1", "seller-1"))
         .rejects.toThrow("Meal not found");
@@ -110,7 +145,7 @@ describe("MealService", () => {
       expect(repo.softDelete).toHaveBeenCalledWith("meal-1", "seller-1");
     });
 
-    it("throws when meal belongs to another seller", async () => {
+    it("throws when meal belongs to another user", async () => {
       (repo.findById as any).mockResolvedValue({ ...sampleMeal, seller_id: "seller-2" });
       await expect(service.deleteMeal("meal-1", "seller-1"))
         .rejects.toThrow("Meal not found");
@@ -123,9 +158,9 @@ describe("MealService", () => {
       expect(meals).toHaveLength(1);
     });
 
-    it("passes category filter", async () => {
-      await service.getActiveMeals("minuman");
-      expect(repo.findActive).toHaveBeenCalledWith("minuman");
+    it("passes category_id filter", async () => {
+      await service.getActiveMeals("11111111-1111-1111-1111-111111111111");
+      expect(repo.findActive).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
     });
   });
 });

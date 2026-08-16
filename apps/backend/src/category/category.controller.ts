@@ -24,7 +24,13 @@ app.post("/", roleGuard("office_boy"), async (c) => {
   const body = await c.req.json();
   const parsed = createCategorySchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
-  const category = await service.createCategory(parsed.data.name, user.id);
+  const category = await service.createCategory(
+    {
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
+    },
+    user.id,
+  );
   return c.json({ category }, 201);
 });
 
@@ -35,7 +41,10 @@ app.patch("/:id", roleGuard("office_boy"), async (c) => {
   const body = await c.req.json();
   const parsed = updateCategorySchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
-  const category = await service.updateCategory(id, parsed.data.name!);
+  const category = await service.updateCategory(id, {
+    name: parsed.data.name,
+    description: parsed.data.description,
+  });
   if (!category) return c.json({ error: "Category not found" }, 404);
   return c.json({ category }, 200);
 });

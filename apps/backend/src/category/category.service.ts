@@ -1,4 +1,4 @@
-import { CategoryRepository } from "./category.repository";
+import { CategoryRepository, type CategoryCreateData, type CategoryUpdateData } from "./category.repository";
 import type { Category } from "./category.model";
 
 export class CategoryService {
@@ -8,14 +8,14 @@ export class CategoryService {
     return this.repo.findAll();
   }
 
-  async createCategory(name: string, createdBy: string): Promise<Category> {
-    return this.repo.create(name, createdBy);
+  async createCategory(data: CategoryCreateData, createdBy: string): Promise<Category> {
+    return this.repo.create(data.name, data.description, createdBy);
   }
 
-  async updateCategory(id: string, name: string): Promise<Category | null> {
+  async updateCategory(id: string, data: CategoryUpdateData): Promise<Category | null> {
     const existing = await this.repo.findById(id);
     if (!existing) return null;
-    await this.repo.update(id, name);
+    await this.repo.update(id, data);
     return this.repo.findById(id);
   }
 

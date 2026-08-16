@@ -1,18 +1,18 @@
 import { z } from "zod";
-import { MEAL_CATEGORIES } from "../constants/meal";
 
 export const createMealSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   price_cents: z.number().int().positive("Price must be positive"),
-  category: z.enum(MEAL_CATEGORIES),
+  // category_id = NULL means own-selling; a non-null UUID points to a food store (categories table).
+  category_id: z.string().uuid("Must be a valid category id").optional().nullable(),
   image_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 export const updateMealSchema = createMealSchema.partial();
 
 export const mealQuerySchema = z.object({
-  category: z.enum(MEAL_CATEGORIES).optional(),
+  category_id: z.string().uuid("Must be a valid category id").optional(),
   is_active: z.coerce.boolean().optional(),
 });
 
