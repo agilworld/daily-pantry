@@ -95,6 +95,18 @@ export function DashboardPage() {
                   </div>
                 </Link>
                 <Link
+                  to="/menu"
+                  className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📋</span>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Manage Meals</h3>
+                      <p className="text-sm text-gray-500">Add, edit, and toggle meal availability</p>
+                    </div>
+                  </div>
+                </Link>
+                <Link
                   to="/fulfillment"
                   className="block bg-white rounded-xl p-5 shadow-sm border hover:border-blue-300 transition-colors"
                 >

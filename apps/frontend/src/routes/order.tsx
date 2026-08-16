@@ -3,8 +3,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { RoleGuard } from "../components/RoleGuard";
 import { Layout } from "../components/Layout";
 import { useActiveMeals } from "../hooks/useMeals";
+import { useCategories } from "../hooks/useCategories";
 import { usePlaceOrder } from "../hooks/useOrders";
-import { MEAL_CATEGORIES } from "@dailypantry/shared";
 
 function formatIDR(cents: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -14,13 +14,16 @@ function formatIDR(cents: number) {
   }).format(cents);
 }
 
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 export function OrderPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>(MEAL_CATEGORIES[0]);
-  const { data: meals, isLoading: mealsLoading } = useActiveMeals(selectedCategory);
+  // "all" = no filter; otherwise the food store category id.
+  const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
+  const { data: meals, isLoading: mealsLoading } = useActiveMeals();
+  const { data: categories = [] } = useCategories();
+
+  const filteredMeals =
+    filterCategoryId === "all"
+      ? meals
+      : meals?.filter((meal) => meal.category_id === filterCategoryId);
 
   const [modalMeal, setModalMeal] = useState<{
     id: string;
@@ -51,19 +54,29 @@ export function OrderPage() {
       <RoleGuard allowedRoles={["employee", "seller", "office_boy", "manager"]}>
         <Layout title="Order Meals">
           <div className="space-y-6">
-            {/* Category Tabs */}
+            {/* Food store filter */}
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {MEAL_CATEGORIES.map((cat) => (
+              <button
+                onClick={() => setFilterCategoryId("all")}
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  filterCategoryId === "all"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                All
+              </button>
+              {categories.map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  key={cat.id}
+                  onClick={() => setFilterCategoryId(cat.id)}
                   className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    selectedCategory === cat
+                    filterCategoryId === cat.id
                       ? "bg-blue-600 text-white shadow-sm"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {capitalize(cat)}
+                  {cat.name}
                 </button>
               ))}
             </div>
@@ -73,9 +86,9 @@ export function OrderPage() {
               <div className="flex justify-center py-10">
                 <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
               </div>
-            ) : meals && meals.length > 0 ? (
+            ) : filteredMeals && filteredMeals.length > 0 ? (
               <div className="grid grid-cols-2 gap-3">
-                {meals.map((meal) => {
+                {filteredMeals.map((meal) => {
                   const available = meal.is_active;
                   return (
                     <div
@@ -89,9 +102,11 @@ export function OrderPage() {
                         <p className="text-blue-600 font-bold mt-1">
                           {formatIDR(meal.price_cents)}
                         </p>
-                        <span className="inline-block mt-1.5 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                          {capitalize(meal.category)}
-                        </span>
+                        {meal.category_name && (
+                          <span className="inline-block mt-1.5 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            {meal.category_name}
+                          </span>
+                        )}
                         <p
                           className={`text-xs mt-2 flex items-center gap-1 ${
                             available ? "text-green-600" : "text-red-500"
@@ -118,10 +133,7 @@ export function OrderPage() {
               </div>
             ) : (
               <div className="bg-white rounded-xl p-8 shadow-sm border text-center">
-                <p className="text-gray-500 text-sm">
-                  No meals in <span className="font-medium">{capitalize(selectedCategory)}</span>{" "}
-                  category.
-                </p>
+                <p className="text-gray-500 text-sm">No meals available.</p>
               </div>
             )}
           </div>

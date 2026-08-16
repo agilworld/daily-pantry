@@ -57,8 +57,8 @@ function AppShell() {
               <span className="text-xl">🍽️</span>
               <span>Order</span>
             </Link>
-            {/* Menu — seller only (sellers manage their own meals) */}
-            {user.role_name === "seller" && (
+            {/* Menu — seller + office boy (both manage their own meals) */}
+            {(user.role_name === "seller" || user.role_name === "office_boy") && (
               <Link
                 to="/menu"
                 className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
