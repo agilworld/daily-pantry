@@ -20,6 +20,7 @@ export class NotesRepository {
         link_url: notes.link_url,
         created_at: notes.created_at,
         author_name: users.name,
+        author_avatar: users.avatar,
       })
       .from(notes)
       .innerJoin(users, eq(notes.author_id, users.id))
@@ -41,6 +42,12 @@ export class NotesRepository {
         link_url: data.link_url ?? null,
       })
       .returning();
-    return rows[0] as Note;
+    const note = rows[0];
+    const authors = await this.db
+      .select({ avatar: users.avatar })
+      .from(users)
+      .where(eq(users.id, authorId))
+      .limit(1);
+    return { ...note, author_avatar: authors[0]?.avatar ?? null } as Note;
   }
 }

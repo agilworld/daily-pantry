@@ -8,6 +8,8 @@ const userListColumns = {
   name: users.name,
   email: users.email,
   phone_no: users.phone_no,
+  description: users.description,
+  avatar: users.avatar,
   is_active: users.is_active,
   blocked: users.blocked,
   role_id: users.role_id,

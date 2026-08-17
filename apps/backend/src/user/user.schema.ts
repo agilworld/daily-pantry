@@ -17,6 +17,7 @@ export const updateUserBodySchema = z.object({
 
 export const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
   phone_no: z.string().optional(),
   description: z.string().max(500).optional(),
   avatar: z.string().optional(),

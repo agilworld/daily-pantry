@@ -12,6 +12,7 @@ const sampleNote: Note = {
   link_url: null,
   created_at: "2026-07-18T10:00:00.000Z",
   author_name: "Office Boy",
+  author_avatar: null,
 };
 
 const sampleInput = {

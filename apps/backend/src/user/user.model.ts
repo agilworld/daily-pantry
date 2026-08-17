@@ -3,6 +3,8 @@ export interface UserListItem {
   name: string;
   email: string;
   phone_no: string | null;
+  description: string | null;
+  avatar: string | null;
   is_active: boolean;
   blocked: boolean;
   role_id: string;

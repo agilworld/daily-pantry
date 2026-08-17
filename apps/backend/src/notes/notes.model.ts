@@ -7,4 +7,5 @@ export interface Note {
   link_url: string | null;
   created_at: string;
   author_name?: string;
+  author_avatar: string | null;
 }
