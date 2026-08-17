@@ -4,6 +4,8 @@ import { useSellerProfile, useUpdateProfile as useUpdateSellerProfile } from "..
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { Layout } from "../components/Layout";
 import { SellerProfileForm } from "../components/SellerProfileForm";
+import { roleLabel } from "../lib/roles";
+import { resizeImageToDataUrl } from "../lib/imageResize";
 
 // --- Shared field styles ---
 
@@ -19,20 +21,67 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
+function Avatar({ src, size = "h-20 w-20" }: { src: string | null | undefined; size?: string }) {
+  if (!src) {
+    return (
+      <div
+        className={`${size} rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-2xl`}
+        aria-label="No avatar"
+      >
+        👤
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt="Profile avatar"
+      className={`${size} rounded-full object-cover`}
+    />
+  );
+}
+
 // --- Edit profile form (all roles) ---
 
 function EditProfileForm({
   initial,
   onCancel,
 }: {
-  initial: { name: string; phone_no: string; description: string };
+  initial: { name: string; email: string; phone_no: string; description: string; avatar: string | null };
   onCancel: () => void;
 }) {
   const updateProfile = useUpdateProfile();
   const [name, setName] = useState(initial.name);
+  const [email, setEmail] = useState(initial.email);
   const [phone, setPhone] = useState(initial.phone_no);
   const [description, setDescription] = useState(initial.description);
+  const [avatar, setAvatar] = useState<string | null>(initial.avatar);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please select an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarError("Image must be under 10MB");
+      return;
+    }
+
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setAvatar(dataUrl);
+    } catch {
+      setAvatarError("Failed to read image");
+    }
+    // Allow re-selecting the same file after removing the preview.
+    e.target.value = "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,11 +90,17 @@ function EditProfileForm({
       setError("Name must be at least 2 characters");
       return;
     }
+    if (!email.trim() || !email.includes("@")) {
+      setError("Enter a valid email address");
+      return;
+    }
     updateProfile.mutate(
       {
         name: name.trim(),
+        email: email.trim(),
         phone_no: phone.trim() || undefined,
         description: description.trim() || undefined,
+        avatar: avatar ?? undefined,
       },
       {
         onSuccess: () => onCancel(),
@@ -59,8 +114,49 @@ function EditProfileForm({
       {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">{error}</div>}
 
       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Avatar</label>
+        <div className="flex items-center gap-3">
+          <Avatar src={avatar} />
+          <div className="flex flex-col gap-2">
+            <label className="cursor-pointer inline-block px-3 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+              📷 Upload Avatar
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                aria-label="Upload avatar"
+                className="hidden"
+              />
+            </label>
+            {avatar && (
+              <button
+                type="button"
+                onClick={() => setAvatar(null)}
+                className="text-xs text-red-600 hover:text-red-800"
+              >
+                Remove avatar
+              </button>
+            )}
+          </div>
+        </div>
+        {avatarError && <p className="text-red-500 text-xs mt-1">{avatarError}</p>}
+      </div>
+
+      <div>
         <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
         <input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+      </div>
+
+      <div>
+        <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <input
+          id="profile-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={inputClass}
+          placeholder="you@company.com"
+        />
       </div>
 
       <div>
@@ -225,17 +321,25 @@ export function ProfilePage() {
               <EditProfileForm
                 initial={{
                   name: user?.name || "",
+                  email: user?.email || "",
                   phone_no: user?.phone_no || "",
                   description: user?.description || "",
+                  avatar: user?.avatar ?? null,
                 }}
                 onCancel={() => setIsEditing(false)}
               />
             ) : (
               <>
                 <div className="space-y-4">
-                  <InfoRow label="Name" value={user?.name} />
+                  <div className="flex items-center gap-4">
+                    <Avatar src={user?.avatar} />
+                    <div className="flex-1">
+                      <p className="text-lg font-semibold text-gray-900">{user?.name}</p>
+                      <p className="text-sm text-gray-500">{roleLabel(user?.role_name)}</p>
+                    </div>
+                  </div>
                   <InfoRow label="Email" value={user?.email} />
-                  <InfoRow label="Role" value={user?.role_name?.replace("_", " ")} />
+                  <InfoRow label="Role" value={roleLabel(user?.role_name)} />
                   <InfoRow label="Phone" value={user?.phone_no} />
                   <InfoRow label="Description" value={user?.description} />
                 </div>

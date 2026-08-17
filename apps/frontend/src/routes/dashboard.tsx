@@ -9,6 +9,7 @@ import {
 import { useNotes } from "../hooks/useNotes";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { Layout } from "../components/Layout";
+import { roleLabel } from "../lib/roles";
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   placed: "Placed",
@@ -148,13 +149,43 @@ function TodaysNoteSection() {
       <h3 className="font-semibold text-gray-900 mb-2">Today&rsquo;s Note</h3>
       {latest ? (
         <>
-          <p className="text-sm text-gray-800">{latest.content}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            {latest.author_name} &middot;{" "}
-            {new Date(latest.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          {latest.content && (
+            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+              {latest.content}
+            </p>
+          )}
+          {latest.image && (
+            <img
+              src={latest.image}
+              alt="Note attachment"
+              className="mt-2 max-h-64 rounded-lg object-contain border"
+            />
+          )}
+          {latest.link_url && (
+            <a
+              href={latest.link_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm break-all"
+            >
+              🔗 {latest.link_url}
+            </a>
+          )}
+          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+            {latest.author_avatar && (
+              <img
+                src={latest.author_avatar}
+                alt=""
+                className="h-5 w-5 rounded-full object-cover"
+              />
+            )}
+            <span>
+              {latest.author_name} &middot;{" "}
+              {new Date(latest.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           </p>
         </>
       ) : (
@@ -179,7 +210,7 @@ export function DashboardPage() {
             {/* Welcome */}
             <div className="bg-white rounded-xl p-5 shadow-sm border">
               <h2 className="text-lg font-semibold text-gray-900">Welcome, {user?.name}!</h2>
-              <p className="text-sm text-gray-500 mt-1 capitalize">Role: {user?.role_name?.replace("_", " ")}</p>
+              <p className="text-sm text-gray-500 mt-1">Role: {roleLabel(user?.role_name)}</p>
             </div>
 
             {/* Role-specific actions */}

@@ -32,6 +32,7 @@ let mockNotes: Array<{
   link_url: string | null;
   created_at: string;
   author_name: string;
+  author_avatar: string | null;
 }> = [];
 vi.mock("../../hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "u1", name: "Boy", email: "boy@corp.com", role_id: "r2", role_name: "office_boy", phone_no: null, avatar: null, description: null, is_active: true, blocked: false, created_at: "2026-01-01" }, isLoading: false, isAuthenticated: true }),
@@ -73,6 +74,7 @@ const baseNote = {
   link_url: null,
   created_at: "2026-08-16T08:00:00Z",
   author_name: "Boy",
+  author_avatar: null,
 };
 
 describe("NotesPage", () => {
@@ -176,6 +178,16 @@ describe("NotesPage", () => {
     );
   });
 
+  it("renders the author avatar on a note card", () => {
+    mockNotes = [
+      { ...baseNote, author_avatar: "data:image/jpeg;base64,AVATAR" },
+    ];
+    renderNotes();
+    const avatars = document.querySelectorAll("img.rounded-full");
+    expect(avatars.length).toBeGreaterThan(0);
+    expect(avatars[0]).toHaveAttribute("src", "data:image/jpeg;base64,AVATAR");
+  });
+
   it("shows image error for non-image file type", () => {
     const { container } = renderNotes();
 
@@ -186,16 +198,16 @@ describe("NotesPage", () => {
     expect(screen.getByText(/jpeg, png, webp, or gif/i)).toBeInTheDocument();
   });
 
-  it("shows image error for files over 2MB", async () => {
+  it("shows image error for files over 10MB", async () => {
     const user = userEvent.setup();
     renderNotes();
 
-    const big = new File([new ArrayBuffer(2 * 1024 * 1024 + 1)], "big.png", {
+    const big = new File([new ArrayBuffer(10 * 1024 * 1024 + 1)], "big.png", {
       type: "image/png",
     });
     await user.upload(screen.getByLabelText(/attach image/i), big);
 
-    expect(screen.getByText(/image must be under 2mb/i)).toBeInTheDocument();
+    expect(screen.getByText(/image must be under 10mb/i)).toBeInTheDocument();
   });
 
   it("opens emoji picker and appends an emoji to the textarea", async () => {

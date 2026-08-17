@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createUserSchema } from "@dailypantry/shared";
+import { roleLabel } from "../lib/roles";
 
 interface RoleItem {
   id: string;
@@ -74,7 +75,7 @@ export function UserForm({ roles, onSubmit, isPending, error }: Props) {
         <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
         <select value={roleId} onChange={e => setRoleId(e.target.value)}
           className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-          {roles.map(r => <option key={r.id} value={r.id}>{r.name.replace("_", " ")}</option>)}
+          {roles.map(r => <option key={r.id} value={r.id}>{roleLabel(r.name)}</option>)}
         </select>
       </div>
 

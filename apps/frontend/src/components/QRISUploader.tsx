@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { resizeImageToDataUrl } from "../lib/imageResize";
 
 interface Props {
   currentImage: string;
@@ -9,11 +10,11 @@ export function QRISUploader({ currentImage, onImageChange }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     setError(null);
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Image must be under 2MB");
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image must be under 10MB");
       return;
     }
 
@@ -22,14 +23,13 @@ export function QRISUploader({ currentImage, onImageChange }: Props) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      onImageChange(reader.result as string);
-    };
-    reader.onerror = () => {
+    try {
+      // Resize client-side (max ~1280px, quality 0.85) so QRIS stays small.
+      const dataUrl = await resizeImageToDataUrl(file);
+      onImageChange(dataUrl);
+    } catch {
       setError("Failed to read image");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   return (

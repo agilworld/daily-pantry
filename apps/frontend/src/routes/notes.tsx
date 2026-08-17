@@ -3,8 +3,11 @@ import { useAuth } from "../hooks/useAuth";
 import { useNotes, useCreateNote } from "../hooks/useNotes";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { Layout } from "../components/Layout";
+import { resizeImageToDataUrl } from "../lib/imageResize";
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB
+// Max input file size BEFORE frontend resize (10MB). The resize step outputs
+// a ~1280px JPEG/WebP data URL, which keeps the stored payload far smaller.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const EMOJIS = [
@@ -46,7 +49,7 @@ export function NotesPage() {
   const hasContent = content.trim().length > 0 || image !== null || linkUrl.trim().length > 0;
   const canSubmit = hasContent && !createNote.isPending;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageError(null);
@@ -56,19 +59,20 @@ export function NotesPage() {
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setImageError("Image must be under 2MB");
+      setImageError("Image must be under 10MB");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImage(reader.result as string);
+    try {
+      // Resize client-side (max ~1280px, quality 0.85) so uploads stay small
+      // while keeping quality. Output is jpeg/webp, so gif source becomes a
+      // single static frame.
+      const dataUrl = await resizeImageToDataUrl(file);
+      setImage(dataUrl);
       setImageError(null);
-    };
-    reader.onerror = () => {
+    } catch {
       setImageError("Failed to read image");
-    };
-    reader.readAsDataURL(file);
+    }
     // Allow re-selecting the same file after removing the preview.
     e.target.value = "";
   };
@@ -265,8 +269,15 @@ export function NotesPage() {
                     🔗 {n.link_url}
                   </a>
                 )}
-                <p className="text-xs text-gray-400 mt-2">
-                  {n.author_name} · {formatTimestamp(n.created_at)}
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                  {n.author_avatar && (
+                    <img
+                      src={n.author_avatar}
+                      alt=""
+                      className="h-5 w-5 rounded-full object-cover"
+                    />
+                  )}
+                  <span>{n.author_name} · {formatTimestamp(n.created_at)}</span>
                 </p>
               </div>
             ))}

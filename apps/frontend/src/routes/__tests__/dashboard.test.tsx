@@ -170,12 +170,42 @@ describe("DashboardPage", () => {
         is_broadcast: true,
         created_at: "2026-08-17T08:00:00Z",
         author_name: "Boy",
+        author_avatar: null,
       },
     ];
     renderDashboard();
     expect(screen.getByText("Free lunch today!")).toBeInTheDocument();
     // Author appears in the note footer (also appears in the Welcome header)
     expect(screen.getAllByText(/Boy/).length).toBeGreaterThan(1);
+  });
+
+  it("renders image, link, and author avatar in today's note", () => {
+    mockNotes = [
+      {
+        id: "n1",
+        author_id: "u1",
+        content: "Lunch special",
+        is_broadcast: true,
+        image: "data:image/jpeg;base64,NOTEIMG",
+        link_url: "https://example.com/menu",
+        created_at: "2026-08-17T08:00:00Z",
+        author_name: "Boy",
+        author_avatar: "data:image/jpeg;base64,AVATAR",
+      },
+    ];
+    renderDashboard();
+
+    const noteImg = document.querySelector('img[alt="Note attachment"]');
+    expect(noteImg).toHaveAttribute("src", "data:image/jpeg;base64,NOTEIMG");
+
+    const link = screen.getByRole("link", { name: /https:\/\/example\.com\/menu/ });
+    expect(link).toHaveAttribute("href", "https://example.com/menu");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+    const avatars = document.querySelectorAll("img.rounded-full");
+    expect(avatars.length).toBeGreaterThan(0);
+    expect(avatars[0]).toHaveAttribute("src", "data:image/jpeg;base64,AVATAR");
   });
 
   it("shows no announcements message when there are no notes", () => {

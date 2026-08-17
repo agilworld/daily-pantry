@@ -5,6 +5,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { Layout } from "../components/Layout";
 import { UserList } from "../components/UserList";
 import { UserForm } from "../components/UserForm";
+import { roleLabel } from "../lib/roles";
 
 export function UsersPage() {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ export function UsersPage() {
               onClick={() => setRoleFilter(role.id)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${roleFilter === role.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
             >
-              {role.name.replace("_", " ")}
+              {roleLabel(role.name)}
             </button>
           ))}
         </div>

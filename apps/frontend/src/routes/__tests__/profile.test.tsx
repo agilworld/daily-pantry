@@ -24,7 +24,19 @@ vi.mock("@tanstack/react-router", () => ({
 // Mock useAuth hooks (employee role — non-seller)
 const mockUpdateProfileMutate = vi.fn();
 const mockChangePasswordMutate = vi.fn();
-let mockUser = {
+let mockUser: {
+  id: string;
+  name: string;
+  email: string;
+  role_id: string;
+  role_name: string;
+  phone_no: string | null;
+  avatar: string | null;
+  description: string | null;
+  is_active: boolean;
+  blocked: boolean;
+  created_at: string;
+} = {
   id: "u1",
   name: "Ana",
   email: "ana@corp.com",
@@ -141,9 +153,23 @@ describe("ProfilePage (employee)", () => {
 
     await waitFor(() => {
       expect(mockUpdateProfileMutate).toHaveBeenCalledWith(
-        { name: "Ana Updated", phone_no: "0812-3456-7890", description: "Loves lunch" },
+        {
+          name: "Ana Updated",
+          email: "ana@corp.com",
+          phone_no: "0812-3456-7890",
+          description: "Loves lunch",
+          avatar: undefined,
+        },
         expect.any(Object),
       );
     });
+  });
+
+  it("shows avatar in read mode", () => {
+    mockUser = { ...mockUser, avatar: "data:image/jpeg;base64,AVATAR" };
+    renderProfile();
+    const avatar = document.querySelector("img.rounded-full");
+    expect(avatar).toHaveAttribute("src", "data:image/jpeg;base64,AVATAR");
+    mockUser = { ...mockUser, avatar: null };
   });
 });

@@ -1,5 +1,6 @@
 import { Outlet, Link } from "@tanstack/react-router";
 import { AuthProvider, useAuth, useLogout } from "../hooks/useAuth";
+import { roleLabel } from "../lib/roles";
 
 function AppShell() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -22,7 +23,7 @@ function AppShell() {
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">{user.name}</span>
               <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {user.role_name}
+                {roleLabel(user.role_name)}
               </span>
               <button
                 onClick={() => logout.mutate()}

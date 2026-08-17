@@ -1,3 +1,5 @@
+import { roleLabel } from "../lib/roles";
+
 interface UserItem {
   id: string;
   name: string;
@@ -31,7 +33,7 @@ export function UserList({ users, onToggleActive }: Props) {
                   user.role_name === "manager" ? "bg-orange-100 text-orange-700" :
                   "bg-blue-100 text-blue-700"
                 }`}>
-                  {user.role_name.replace("_", " ")}
+                  {roleLabel(user.role_name)}
                 </span>
               </div>
               <p className="text-sm text-gray-500 truncate mt-0.5">{user.email}</p>

@@ -101,6 +101,7 @@ export function useAuth() {
 
 export function useLogin() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: (data: { email: string; password: string }) =>
@@ -110,10 +111,13 @@ export function useLogin() {
       // setQueryData seeds the cache directly — no race with invalidateQueries
       // (the ["auth", "me"] query is always-enabled now, so a failed/disabled
       // refetch can no longer clobber the freshly-written value).
-      // No navigate() here — AuthProvider's effect redirects to /dashboard
-      // reactively once isAuthenticated flips true.
+      // Seed auth state BEFORE navigating so the dashboard renders the user
+      // immediately, then navigate imperatively as the deterministic guarantee.
+      // The AuthProvider effect also reacts, but navigate() here is guaranteed
+      // (React Query defers cache notifications while router navigation is sync).
       setAuthStorage();
       queryClient.setQueryData(["auth", "me"], data.user ?? null);
+      navigate({ to: "/dashboard" });
     },
   });
 }
@@ -136,6 +140,7 @@ export function useRegister() {
 
 export function useLogout() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: () => api.post("/auth/logout", {}),
@@ -149,7 +154,10 @@ export function useLogout() {
       // clear() avoids a spinner-on-logout: clear() removes ["auth","me"]
       // entirely, which would leave user=undefined and isLoading=true.
       queryClient.setQueryData(["auth", "me"], null);
-      // No navigate() here — AuthProvider effect redirects to /login reactively.
+      // Imperative navigate as the guaranteed fallback. Do it LAST so state
+      // mutations above have committed. The AuthProvider effect also reacts,
+      // but navigate() here is the deterministic guarantee.
+      navigate({ to: "/login" });
     },
   });
 }
@@ -157,7 +165,7 @@ export function useLogout() {
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name?: string; phone_no?: string; description?: string; avatar?: string }) =>
+    mutationFn: (data: { name?: string; email?: string; phone_no?: string; description?: string; avatar?: string }) =>
       api.put<{ user: AuthUser }>("/users/me", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
   });
