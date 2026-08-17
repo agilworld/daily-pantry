@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -23,7 +23,16 @@ vi.mock("@tanstack/react-router", () => ({
 
 // Mock useAuth hooks
 const mockCreateNoteMutate = vi.fn();
-let mockNotes = [{ id: "n1", author_id: "u1", content: "Hello", is_broadcast: true, created_at: "2026-08-16T08:00:00Z", author_name: "Boy" }];
+let mockNotes: Array<{
+  id: string;
+  author_id: string;
+  content: string;
+  is_broadcast: boolean;
+  image: string | null;
+  link_url: string | null;
+  created_at: string;
+  author_name: string;
+}> = [];
 vi.mock("../../hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "u1", name: "Boy", email: "boy@corp.com", role_id: "r2", role_name: "office_boy", phone_no: null, avatar: null, description: null, is_active: true, blocked: false, created_at: "2026-01-01" }, isLoading: false, isAuthenticated: true }),
   useLogout: () => ({ mutate: vi.fn(), isPending: false }),
@@ -55,10 +64,21 @@ function renderNotes() {
   );
 }
 
+const baseNote = {
+  id: "n1",
+  author_id: "u1",
+  content: "Hello",
+  is_broadcast: true,
+  image: null,
+  link_url: null,
+  created_at: "2026-08-16T08:00:00Z",
+  author_name: "Boy",
+};
+
 describe("NotesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockNotes = [{ id: "n1", author_id: "u1", content: "Hello", is_broadcast: true, created_at: "2026-08-16T08:00:00Z", author_name: "Boy" }];
+    mockNotes = [{ ...baseNote }];
   });
 
   it("renders notes list with author and timestamp", () => {
@@ -85,10 +105,108 @@ describe("NotesPage", () => {
 
     await waitFor(() => {
       expect(mockCreateNoteMutate).toHaveBeenCalledWith(
-        { content: "New note", is_broadcast: true },
+        { content: "New note", is_broadcast: true, image: undefined, link_url: undefined },
         expect.any(Object),
       );
     });
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Write a note...")).toHaveValue("");
+    });
+  });
+
+  it("disables submit when content, image, and link are all empty", () => {
+    mockNotes = [];
+    renderNotes();
+    expect(screen.getByRole("button", { name: /post note/i })).toBeDisabled();
+  });
+
+  it("submits a link URL and renders it as a clickable link", async () => {
+    const user = userEvent.setup();
+    mockCreateNoteMutate.mockImplementation((_data, opts) => {
+      opts?.onSuccess?.();
+    });
+    mockNotes = [
+      { ...baseNote, content: "Lunch deal", link_url: "https://example.com/menu" },
+    ];
+    renderNotes();
+
+    // The stored note link is displayed clickable
+    const anchor = screen.getByRole("link", { name: /https:\/\/example\.com\/menu/ });
+    expect(anchor).toHaveAttribute("href", "https://example.com/menu");
+    expect(anchor).toHaveAttribute("target", "_blank");
+    expect(anchor).toHaveAttribute("rel", "noopener noreferrer");
+
+    // Posting a note with a link URL includes it in the payload
+    const urlInput = screen.getByPlaceholderText(/optional link/i);
+    await user.type(urlInput, "https://example.com/deal");
+    await user.click(screen.getByRole("button", { name: /post note/i }));
+
+    await waitFor(() => {
+      expect(mockCreateNoteMutate).toHaveBeenCalledWith(
+        {
+          content: "",
+          is_broadcast: true,
+          image: undefined,
+          link_url: "https://example.com/deal",
+        },
+        expect.any(Object),
+      );
+    });
+  });
+
+  it("rejects an invalid link URL with an error", async () => {
+    const user = userEvent.setup();
+    renderNotes();
+
+    await user.type(screen.getByPlaceholderText(/optional link/i), "not-a-url");
+    await user.click(screen.getByRole("button", { name: /post note/i }));
+
+    expect(screen.getByText(/enter a valid link/i)).toBeInTheDocument();
+    expect(mockCreateNoteMutate).not.toHaveBeenCalled();
+  });
+
+  it("renders a note image", () => {
+    mockNotes = [
+      { ...baseNote, content: "Menu", image: "data:image/png;base64,AAAA" },
+    ];
+    renderNotes();
+    expect(screen.getByAltText("Note attachment")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,AAAA",
+    );
+  });
+
+  it("shows image error for non-image file type", () => {
+    const { container } = renderNotes();
+
+    const file = new File(["nope"], "file.txt", { type: "text/plain" });
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.getByText(/jpeg, png, webp, or gif/i)).toBeInTheDocument();
+  });
+
+  it("shows image error for files over 2MB", async () => {
+    const user = userEvent.setup();
+    renderNotes();
+
+    const big = new File([new ArrayBuffer(2 * 1024 * 1024 + 1)], "big.png", {
+      type: "image/png",
+    });
+    await user.upload(screen.getByLabelText(/attach image/i), big);
+
+    expect(screen.getByText(/image must be under 2mb/i)).toBeInTheDocument();
+  });
+
+  it("opens emoji picker and appends an emoji to the textarea", async () => {
+    const user = userEvent.setup();
+    renderNotes();
+
+    await user.click(screen.getByRole("button", { name: /open emoji picker/i }));
+    const emojiButton = screen.getByRole("button", { name: "Add 😀" });
+    await user.click(emojiButton);
+
+    expect(screen.getByPlaceholderText("Write a note...")).toHaveValue("😀");
   });
 
   it("shows empty state when there are no notes", () => {

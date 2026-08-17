@@ -6,6 +6,8 @@ export interface Note {
   author_id: string;
   content: string;
   is_broadcast: boolean;
+  image: string | null;
+  link_url: string | null;
   created_at: string;
   author_name: string;
 }
@@ -21,10 +23,17 @@ export function useNotes(date?: string) {
   });
 }
 
+export interface CreateNoteData {
+  content: string;
+  is_broadcast: boolean;
+  image?: string;
+  link_url?: string;
+}
+
 export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { content: string; is_broadcast: boolean }) =>
+    mutationFn: (data: CreateNoteData) =>
       api.post<{ note: Note }>("/notes", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
