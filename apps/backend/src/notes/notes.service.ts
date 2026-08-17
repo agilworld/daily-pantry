@@ -8,7 +8,10 @@ export class NotesService {
     return this.repo.findAll(date);
   }
 
-  async createNote(authorId: string, content: string, isBroadcast: boolean): Promise<Note> {
-    return this.repo.create(authorId, content, isBroadcast);
+  async createNote(
+    authorId: string,
+    data: { content: string; is_broadcast: boolean; image?: string | null; link_url?: string | null }
+  ): Promise<Note> {
+    return this.repo.create(authorId, data);
   }
 }

@@ -92,6 +92,8 @@ export const notes = sqliteTable("notes", {
   author_id: text("author_id").notNull().references(() => users.id),
   content: text("content").notNull(),
   is_broadcast: integer("is_broadcast", { mode: "boolean" }).default(true),
+  image: text("image"),          // base64 data URL (jpeg/png/webp/gif), nullable
+  link_url: text("link_url"),    // optional external URL, nullable
   created_at: text("created_at").default(sql`(current_timestamp)`),
   deleted_at: text("deleted_at"),
   updated_at: text("updated_at"),

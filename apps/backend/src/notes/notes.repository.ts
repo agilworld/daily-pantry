@@ -16,6 +16,8 @@ export class NotesRepository {
         author_id: notes.author_id,
         content: notes.content,
         is_broadcast: notes.is_broadcast,
+        image: notes.image,
+        link_url: notes.link_url,
         created_at: notes.created_at,
         author_name: users.name,
       })
@@ -25,8 +27,20 @@ export class NotesRepository {
       .orderBy(desc(notes.created_at))) as unknown as Note[];
   }
 
-  async create(authorId: string, content: string, isBroadcast: boolean): Promise<Note> {
-    const rows = await this.db.insert(notes).values({ author_id: authorId, content, is_broadcast: isBroadcast }).returning();
+  async create(
+    authorId: string,
+    data: { content: string; is_broadcast: boolean; image?: string | null; link_url?: string | null }
+  ): Promise<Note> {
+    const rows = await this.db
+      .insert(notes)
+      .values({
+        author_id: authorId,
+        content: data.content,
+        is_broadcast: data.is_broadcast,
+        image: data.image ?? null,
+        link_url: data.link_url ?? null,
+      })
+      .returning();
     return rows[0] as Note;
   }
 }

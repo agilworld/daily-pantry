@@ -27,7 +27,12 @@ app.post("/", roleGuard("seller", "office_boy"), async (c) => {
   const body = await c.req.json();
   const parsed = createNoteSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
-  const note = await service.createNote(user.id, parsed.data.content, parsed.data.is_broadcast);
+  const note = await service.createNote(user.id, {
+    content: parsed.data.content,
+    is_broadcast: parsed.data.is_broadcast,
+    image: parsed.data.image ?? null,
+    link_url: parsed.data.link_url ?? null,
+  });
   return c.json({ note }, 201);
 });
 

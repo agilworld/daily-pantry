@@ -3,6 +3,8 @@ export interface Note {
   author_id: string;
   content: string;
   is_broadcast: boolean;
+  image: string | null;
+  link_url: string | null;
   created_at: string;
   author_name?: string;
 }

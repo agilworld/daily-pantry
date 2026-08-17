@@ -8,8 +8,15 @@ const sampleNote: Note = {
   author_id: "user-1",
   content: "Lunch will be delayed by 30 minutes",
   is_broadcast: true,
+  image: null,
+  link_url: null,
   created_at: "2026-07-18T10:00:00.000Z",
   author_name: "Office Boy",
+};
+
+const sampleInput = {
+  content: "Lunch will be delayed by 30 minutes",
+  is_broadcast: true,
 };
 
 function createMockRepo(overrides: Partial<NotesRepository> = {}): NotesRepository {
@@ -49,9 +56,20 @@ describe("NotesService", () => {
 
   describe("createNote", () => {
     it("creates a note with author, content and broadcast flag", async () => {
-      const note = await service.createNote("user-1", "New note", true);
+      const note = await service.createNote("user-1", sampleInput);
       expect(note.id).toBe("note-1");
-      expect(repo.create).toHaveBeenCalledWith("user-1", "New note", true);
+      expect(repo.create).toHaveBeenCalledWith("user-1", sampleInput);
+    });
+
+    it("passes through image and link_url", async () => {
+      const input = {
+        content: "Lunch menu",
+        is_broadcast: true,
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        link_url: "https://example.com/menu",
+      };
+      await service.createNote("user-1", input);
+      expect(repo.create).toHaveBeenCalledWith("user-1", input);
     });
   });
 });
