@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { api } from "../lib/api";
 
 // Namespaced auth keys the app owns in localStorage.
@@ -44,24 +44,52 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const hasSession = localStorage.getItem("dp_has_session") === "true";
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { data: user, isLoading } = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: () =>
-      api.get<{ user: AuthUser }>("/auth/me").then((r) => r.user),
-    enabled: hasSession,
+    queryFn: () => {
+      // Read localStorage reactively inside the query so the enabled
+      // state isn't captured in a stale closure at mount time.
+      if (localStorage.getItem("dp_has_session") !== "true") {
+        return null;
+      }
+      return api.get<{ user: AuthUser }>("/auth/me").then((r) => r.user);
+    },
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
+  const isAuthenticated = !!user;
+
+  // Drive redirects reactively from auth state instead of imperative
+  // navigate() inside mutation callbacks. Router navigation and the React
+  // Query cache are separate stores and don't batch, so navigating in
+  // useLogin/useLogout onSuccess raced the AuthProvider re-render (login
+  // bounced back to /login via ProtectedRoute; logout kept stale nav).
+  // Mutations only mutate state; this effect reacts to the state change.
+  useEffect(() => {
+    if (isLoading) return;
+    const onAuthPage =
+      location.pathname === "/login" || location.pathname === "/register";
+    if (isAuthenticated && onAuthPage) {
+      // Logged in but on login/register → go to dashboard
+      navigate({ to: "/dashboard" });
+    } else if (!isAuthenticated && !onAuthPage && location.pathname !== "/") {
+      // Not logged in and on a protected page → go to login
+      navigate({ to: "/login" });
+    }
+  }, [isAuthenticated, isLoading, location.pathname, navigate]);
+
   const value = useMemo(
     () => ({
       user: user ?? null,
       isLoading,
-      isAuthenticated: !!user,
+      isAuthenticated,
     }),
-    [user, isLoading],
+    [user, isLoading, isAuthenticated],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -73,19 +101,19 @@ export function useAuth() {
 
 export function useLogin() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: (data: { email: string; password: string }) =>
       api.post<{ user: AuthUser }>("/auth/login", data),
     onSuccess: (data) => {
       // Persist session flag + cached user so a refresh keeps the user logged in.
+      // setQueryData seeds the cache directly — no race with invalidateQueries
+      // (the ["auth", "me"] query is always-enabled now, so a failed/disabled
+      // refetch can no longer clobber the freshly-written value).
+      // No navigate() here — AuthProvider's effect redirects to /dashboard
+      // reactively once isAuthenticated flips true.
       setAuthStorage();
-      if (data.user) {
-        queryClient.setQueryData(["auth", "me"], data.user);
-      }
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      navigate({ to: "/dashboard" });
+      queryClient.setQueryData(["auth", "me"], data.user ?? null);
     },
   });
 }
@@ -108,16 +136,20 @@ export function useRegister() {
 
 export function useLogout() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: () => api.post("/auth/logout", {}),
     onSuccess: () => {
-      // Clear ALL cached server state first so no stale data survives the session.
-      queryClient.clear();
-      // Then remove only the app-owned auth keys (never localStorage.clear()).
+      // Remove only the app-owned auth keys (never localStorage.clear()).
       clearAuthStorage();
-      navigate({ to: "/login" });
+      // Clear ALL cached server state so no stale data survives the session.
+      queryClient.clear();
+      // Then seed auth as null (not authenticated, not loading) so the
+      // AuthProvider effect redirects to /login reactively. Seeding AFTER
+      // clear() avoids a spinner-on-logout: clear() removes ["auth","me"]
+      // entirely, which would leave user=undefined and isLoading=true.
+      queryClient.setQueryData(["auth", "me"], null);
+      // No navigate() here — AuthProvider effect redirects to /login reactively.
     },
   });
 }
