@@ -68,6 +68,16 @@ export class OrderRepository {
       .orderBy(desc(orders.created_at)) as Promise<Order[]>;
   }
 
+  async findByStatus(status: OrderStatus, date?: string): Promise<Order[]> {
+    const conditions = [eq(orders.status, status)];
+    if (date) conditions.push(like(orders.order_date, `${date}%`));
+    return this.db
+      .select()
+      .from(orders)
+      .where(and(...conditions))
+      .orderBy(desc(orders.created_at)) as Promise<Order[]>;
+  }
+
   async updateStatus(id: string, status: OrderStatus, timestampField?: string, fulfillmentNotes?: string): Promise<void> {
     const updateData: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (timestampField) updateData[timestampField] = new Date().toISOString();

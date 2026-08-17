@@ -79,6 +79,20 @@ app.get("/", roleGuard("office_boy"), async (c) => {
   return c.json({ orders }, 200);
 });
 
+// Office boy confirms ALL placed orders (optional date filter) in one shot.
+// Registered BEFORE /:id routes so "confirm-all" is not captured as an id.
+app.post("/confirm-all", roleGuard("office_boy"), async (c) => {
+  const db = c.get("db");
+  const service = new OrderService(new OrderRepository(db));
+  const date = c.req.query("date");
+  try {
+    const result = await service.confirmAllPlaced(date);
+    return c.json(result, 200);
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "Failed" }, 400);
+  }
+});
+
 // Seller views orders for their meals (optional date filter)
 app.get("/seller", roleGuard("seller"), async (c) => {
   const db = c.get("db");
@@ -159,6 +173,22 @@ app.get("/ready", roleGuard("office_boy"), async (c) => {
   const service = new OrderService(repo);
   const orders = await service.getReadyOrders();
   return c.json({ orders }, 200);
+});
+
+// Employee accepts a DELIVERED order (one-way, sets accepted_at)
+app.post("/:id/accept", roleGuard("employee"), async (c) => {
+  const db = c.get("db");
+  const service = new OrderService(new OrderRepository(db));
+  const user = c.get("user");
+  const id = c.req.param("id");
+  try {
+    const order = await service.acceptOrder(id, user.id);
+    return c.json({ order }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed";
+    const status = message === "Order not found" ? 404 : message.startsWith("Not your") ? 403 : 400;
+    return c.json({ error: message }, status);
+  }
 });
 
 // Cancel order (own / office_boy any) — authenticated

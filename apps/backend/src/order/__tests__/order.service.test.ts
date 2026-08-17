@@ -21,6 +21,7 @@ const samplePlacedOrder: Order = {
   confirmed_at: null,
   ready_at: null,
   delivered_at: null,
+  accepted_at: null,
   cancelled_at: null,
   created_at: "2026-07-18T12:00:00.000Z",
   updated_at: null,
@@ -38,6 +39,7 @@ function createMockRepo(overrides: Partial<OrderRepository> = {}): OrderReposito
     findByEmployee: mock(() => Promise.resolve([makeOrder()])),
     findBySeller: mock(() => Promise.resolve([makeOrder()])),
     findReadyForDelivery: mock(() => Promise.resolve([makeOrder()])),
+    findByStatus: mock(() => Promise.resolve([makeOrder()])),
     updateStatus: mock(() => Promise.resolve()),
     ...overrides,
   } as unknown as OrderRepository;
@@ -109,6 +111,65 @@ describe("OrderService", () => {
     it("rejects delivering from placed (skips state)", async () => {
       (repo.findById as any).mockResolvedValue(makeOrder({ status: "placed" }));
       await expect(service.deliverOrder("order-1", "ob-1")).rejects.toThrow("Cannot transition from placed to delivered");
+    });
+
+    it("rejects cancel after order is confirmed (confirmed_at set)", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "confirmed", confirmed_at: "2026-07-18T13:00:00.000Z" }));
+      await expect(service.cancelOrder("order-1", "emp-1", "employee")).rejects.toThrow("Cannot cancel: order already confirmed");
+    });
+
+    it("rejects cancel from confirmed even when confirmed_at is null (transition map)", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "confirmed", confirmed_at: null }));
+      await expect(service.cancelOrder("order-1", "emp-1", "employee")).rejects.toThrow("Cannot transition from confirmed to cancelled");
+    });
+  });
+
+  describe("acceptOrder", () => {
+    it("accepts a delivered order owned by the employee", async () => {
+      const delivered = makeOrder({ status: "delivered", employee_id: "emp-1" });
+      (repo.findById as any)
+        .mockResolvedValueOnce(delivered)
+        .mockResolvedValueOnce({ ...delivered, accepted_at: "2026-07-18T14:00:00.000Z" });
+      const order = await service.acceptOrder("order-1", "emp-1");
+      expect(repo.updateStatus).toHaveBeenCalledWith("order-1", "delivered", "accepted_at");
+      expect(order.accepted_at).toBe("2026-07-18T14:00:00.000Z");
+    });
+
+    it("rejects accepting another employee's order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "delivered", employee_id: "emp-2" }));
+      await expect(service.acceptOrder("order-1", "emp-1")).rejects.toThrow("Not your order");
+    });
+
+    it("rejects accepting an order that is not delivered", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "ready", employee_id: "emp-1" }));
+      await expect(service.acceptOrder("order-1", "emp-1")).rejects.toThrow("Order not delivered yet");
+    });
+
+    it("rejects accepting an already accepted order", async () => {
+      (repo.findById as any).mockResolvedValue(makeOrder({ status: "delivered", employee_id: "emp-1", accepted_at: "2026-07-18T14:00:00.000Z" }));
+      await expect(service.acceptOrder("order-1", "emp-1")).rejects.toThrow("Order already accepted");
+    });
+
+    it("rejects accepting a missing order", async () => {
+      (repo.findById as any).mockResolvedValue(null);
+      await expect(service.acceptOrder("order-1", "emp-1")).rejects.toThrow("Order not found");
+    });
+  });
+
+  describe("confirmAllPlaced", () => {
+    it("confirms every placed order and returns counts", async () => {
+      (repo.findByStatus as any).mockResolvedValue([makeOrder(), makeOrder(), makeOrder()]);
+      const result = await service.confirmAllPlaced("2026-07-18");
+      expect(repo.findByStatus).toHaveBeenCalledWith("placed", "2026-07-18");
+      expect(repo.updateStatus).toHaveBeenCalledTimes(3);
+      expect(result).toEqual({ confirmed: 3, skipped: 0 });
+    });
+
+    it("returns zero counts when no placed orders", async () => {
+      (repo.findByStatus as any).mockResolvedValue([]);
+      const result = await service.confirmAllPlaced();
+      expect(repo.findByStatus).toHaveBeenCalledWith("placed", undefined);
+      expect(result).toEqual({ confirmed: 0, skipped: 0 });
     });
   });
 

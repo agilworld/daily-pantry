@@ -18,6 +18,7 @@ export interface Order {
   confirmed_at: string | null;
   ready_at: string | null;
   delivered_at: string | null;
+  accepted_at: string | null;
   cancelled_at: string | null;
   created_at: string;
   updated_at: string | null;
@@ -25,8 +26,8 @@ export interface Order {
 
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   placed: ["confirmed", "cancelled"],
-  confirmed: ["ready", "cancelled"],
-  ready: ["delivered", "cancelled"],
+  confirmed: ["ready"],
+  ready: ["delivered"],
   delivered: [],
   cancelled: [],
 };
