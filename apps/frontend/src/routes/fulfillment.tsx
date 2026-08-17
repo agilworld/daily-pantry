@@ -4,6 +4,7 @@ import {
   useSellerOrders,
   useAllOrders,
   useConfirmOrder,
+  useConfirmAllOrders,
   useReadyOrder,
   useDeliverOrder,
   useCancelOrder,
@@ -22,9 +23,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800 border-red-200",
 };
 
+// Status meanings made crystal clear for the office boy.
 const STATUS_LABELS: Record<string, string> = {
-  placed: "Placed",
-  confirmed: "Confirmed",
+  placed: "Placed (awaiting confirmation)",
+  confirmed: "Confirmed (locked in)",
   ready: "Ready",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -32,16 +34,18 @@ const STATUS_LABELS: Record<string, string> = {
 
 const ORDER_STATUSES = ["all", "placed", "confirmed", "ready", "delivered", "cancelled"] as const;
 
-function formatIDR(cents: number) {
+function formatIDR(value: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(cents);
+  }).format(value);
 }
 
 function isCancellable(status: string): boolean {
-  return status === "placed" || status === "confirmed" || status === "ready";
+  // Cancel is only allowed while the order is still placed (not yet confirmed).
+  // Backend enforces this too (confirmed_at !== null rejects cancel).
+  return status === "placed";
 }
 
 function todayISO(): string {
@@ -94,6 +98,65 @@ function FulfillmentNotesModal({
   );
 }
 
+// --- ConfirmAllModal ---
+
+function ConfirmAllModal({
+  count,
+  onConfirm,
+  onCancel,
+  isPending,
+  result,
+}: {
+  count: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+  result: number | null;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+      <div className="bg-white rounded-t-xl sm:rounded-xl w-full sm:max-w-md p-6">
+        <h3 className="text-lg font-semibold mb-2">Confirm it All</h3>
+        {result !== null ? (
+          <>
+            <p className="text-sm text-gray-600 mb-4">
+              {result} order{result === 1 ? "" : "s"} confirmed.
+            </p>
+            <button
+              onClick={onCancel}
+              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Done
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600 mb-4">
+              There {count === 1 ? "is" : "are"} <strong>{count}</strong> placed
+              order{count === 1 ? "" : "s"} awaiting confirmation. Confirm them
+              all at once?
+            </p>
+            <button
+              onClick={onConfirm}
+              disabled={isPending}
+              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {isPending ? "Confirming..." : "Confirm All"}
+            </button>
+            <button
+              onClick={onCancel}
+              disabled={isPending}
+              className="w-full mt-2 py-2.5 text-gray-600 hover:text-gray-800 disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // --- OrderCard ---
 
 function OrderCard({
@@ -118,6 +181,12 @@ function OrderCard({
           {STATUS_LABELS[order.status] || order.status}
         </span>
       </div>
+      {/* Accepted indicator — delivered order the employee confirmed receipt of */}
+      {order.status === "delivered" && order.accepted_at !== null && (
+        <p className="mb-2 text-xs font-medium text-green-600">
+          ✓ Accepted {new Date(order.accepted_at).toLocaleString()}
+        </p>
+      )}
       <div className="text-sm text-gray-600 space-y-0.5">
         <p>
           {order.quantity}x &middot; {formatIDR(order.total_cents)}
@@ -257,6 +326,7 @@ export function FulfillmentPage() {
   const readyOrder = useReadyOrder();
   const deliverOrder = useDeliverOrder();
   const cancelOrder = useCancelOrder();
+  const confirmAll = useConfirmAllOrders();
 
   // Modal state
   const [modal, setModal] = useState<{
@@ -264,6 +334,8 @@ export function FulfillmentPage() {
     action: "confirm" | "ready" | "deliver" | "cancel";
     orderId: string;
   } | null>(null);
+  const [confirmAllOpen, setConfirmAllOpen] = useState(false);
+  const [confirmAllResult, setConfirmAllResult] = useState<number | null>(null);
 
   // Filters
   const [date, setDate] = useState<string>(todayISO()); // default today (backend also defaults to today)
@@ -305,6 +377,16 @@ export function FulfillmentPage() {
     readyOrder.isPending ||
     deliverOrder.isPending ||
     cancelOrder.isPending;
+
+  // ---------- Confirm-all handler ----------
+
+  const handleConfirmAll = () => {
+    confirmAll.mutate(undefined, {
+      onSuccess: (data) => {
+        setConfirmAllResult(data.confirmed ?? 0);
+      },
+    });
+  };
 
   // ---------- Cancel permission ----------
 
@@ -404,6 +486,21 @@ export function FulfillmentPage() {
           {role === "office_boy" && (
             <section>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">All Orders</h3>
+
+              {/* "Confirm it All" — confirm every placed order at once */}
+              {!allLoading && (allOrders ?? []).some((o) => o.status === "placed") && (
+                <button
+                  onClick={() => {
+                    setConfirmAllResult(null);
+                    setConfirmAllOpen(true);
+                  }}
+                  disabled={confirmAll.isPending}
+                  className="w-full mb-4 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  Confirm it All ({(allOrders ?? []).filter((o) => o.status === "placed").length} placed)
+                </button>
+              )}
+
               <div className="mb-3">
                 <StatusFilterTabs
                   selected={statusFilter}
@@ -411,6 +508,24 @@ export function FulfillmentPage() {
                   counts={allOrders ? statusCounts(allOrders) : undefined}
                 />
               </div>
+
+              {/* Total for the currently filtered orders */}
+              {!allLoading && allOrders && allOrders.length > 0 && (
+                <div className="mb-3 bg-white rounded-xl p-4 shadow-sm border border-blue-200">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                    Total{statusFilter !== "all" ? ` (${STATUS_LABELS[statusFilter]})` : ""}
+                  </p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {formatIDR(
+                      filterByStatus(allOrders, statusFilter).reduce(
+                        (sum, o) => sum + o.total_cents,
+                        0,
+                      ),
+                    )}
+                  </p>
+                </div>
+              )}
+
               {allLoading ? (
                 <SectionSkeleton />
               ) : (
@@ -452,6 +567,17 @@ export function FulfillmentPage() {
             onConfirm={handleModalConfirm}
             onCancel={closeModal}
             isPending={isModalPending}
+          />
+        )}
+
+        {/* ======== CONFIRM-ALL MODAL ======== */}
+        {confirmAllOpen && (
+          <ConfirmAllModal
+            count={(allOrders ?? []).filter((o) => o.status === "placed").length}
+            onConfirm={handleConfirmAll}
+            onCancel={() => setConfirmAllOpen(false)}
+            isPending={confirmAll.isPending}
+            result={confirmAllResult}
           />
         )}
       </Layout>

@@ -80,6 +80,7 @@ export const orders = sqliteTable("orders", {
   confirmed_at: text("confirmed_at"),
   ready_at: text("ready_at"),
   delivered_at: text("delivered_at"),
+  accepted_at: text("accepted_at"),
   cancelled_at: text("cancelled_at"),
   created_at: text("created_at").default(sql`(current_timestamp)`),
   deleted_at: text("deleted_at"),

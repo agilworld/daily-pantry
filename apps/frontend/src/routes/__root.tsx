@@ -49,14 +49,16 @@ function AppShell() {
               <span className="text-xl">🏠</span>
               <span>Home</span>
             </Link>
-            {/* Order — public catalog, all roles can order */}
-            <Link
-              to="/order"
-              className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
-            >
-              <span className="text-xl">🍽️</span>
-              <span>Order</span>
-            </Link>
+            {/* Order — public catalog. Employees/sellers/managers order; office boy manages the menu instead (see Menu) */}
+            {user.role_name !== "office_boy" && (
+              <Link
+                to="/order"
+                className="flex flex-col items-center text-xs text-gray-600 hover:text-blue-600 [&.active]:text-blue-600"
+              >
+                <span className="text-xl">🍽️</span>
+                <span>Order</span>
+              </Link>
+            )}
             {/* Menu — seller + office boy (both manage their own meals) */}
             {(user.role_name === "seller" || user.role_name === "office_boy") && (
               <Link
@@ -67,6 +69,7 @@ function AppShell() {
                 <span>Menu</span>
               </Link>
             )}
+
             {/* Fulfillment — office boy completes orders, seller views own orders */}
             {(user.role_name === "office_boy" || user.role_name === "seller") && (
               <Link

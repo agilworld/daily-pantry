@@ -3,6 +3,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { api } from "../lib/api";
 
+// Namespaced auth keys the app owns in localStorage.
+// Logout removes ONLY these keys — never localStorage.clear() (could nuke unrelated PWA data).
+export const AUTH_STORAGE_KEYS = ["dp_has_session", "dp_auth_user"] as const;
+
+export function setAuthStorage() {
+  localStorage.setItem("dp_has_session", "true");
+}
+
+export function clearAuthStorage() {
+  for (const key of AUTH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+  }
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -30,7 +44,7 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const hasSession = localStorage.getItem("has_session") === "true";
+  const hasSession = localStorage.getItem("dp_has_session") === "true";
   const { data: user, isLoading } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: () =>
@@ -64,8 +78,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: (data: { email: string; password: string }) =>
       api.post<{ user: AuthUser }>("/auth/login", data),
-    onSuccess: () => {
-      localStorage.setItem("has_session", "true");
+    onSuccess: (data) => {
+      // Persist session flag + cached user so a refresh keeps the user logged in.
+      setAuthStorage();
+      if (data.user) {
+        queryClient.setQueryData(["auth", "me"], data.user);
+      }
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       navigate({ to: "/dashboard" });
     },
@@ -95,8 +113,10 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api.post("/auth/logout", {}),
     onSuccess: () => {
-      localStorage.removeItem("has_session");
+      // Clear ALL cached server state first so no stale data survives the session.
       queryClient.clear();
+      // Then remove only the app-owned auth keys (never localStorage.clear()).
+      clearAuthStorage();
       navigate({ to: "/login" });
     },
   });
